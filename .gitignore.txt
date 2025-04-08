@@ -1,0 +1,67 @@
+# Build directories
+build/
+bin/
+bin-int/
+x64/
+Debug/
+Release/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio files
+.vscode/
+*.vcxproj*
+*.pdb
+*.obj
+*.ipch
+*.idb
+*.tlog
+*.log
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.cache
+*.ilk
+*.iobj
+*.ipdb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CMake/Other tools
+CMakeFiles/
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Temporary and editor files
+*.swp
+*.bak
+*.tmp
+*.old
+
+# Shader intermediate
+*.spv
+
+# Ignore generated model/texture binaries
+assets/models/*.fbx
+assets/models/*.obj
+assets/textures/*.dds
+assets/textures/*.tga
+assets/textures/*.exr
+
+# But keep your actual .png and .obj
+!assets/models/*.obj
+!assets/textures/*.png
+
+# Ignore compiled shaders if you generate them
+shaders/*.compiled

@@ -13,11 +13,4 @@ Shelves float in the void, books rotate in silence, and the viewer drifts throug
 
 ## Build Instructions
 
-```bash
-git clone https://github.com/yourusername/BABEL.git
-cd BABEL
-mkdir build && cd build
-cmake ..
-make
-./babel
-```
+For now it's only usable on Windows via Visual Studio.

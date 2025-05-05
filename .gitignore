@@ -65,3 +65,5 @@ assets/textures/*.exr
 
 # Ignore compiled shaders if you generate them
 shaders/*.compiled
+/assets/models/1912-electrolier-ceiling-lamps-type-b/source
+/.vs

@@ -9,6 +9,9 @@ public:
     GLuint VAO, VBO;
     size_t vertexCount;
 
+    // Load model from file
     Model(const std::string& path);
+
+    // Draw the model
     void draw() const;
 };

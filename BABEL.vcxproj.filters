@@ -24,6 +24,9 @@
     <ClCompile Include="src\model.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\scene.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\book.frag">
@@ -47,6 +50,9 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\model.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene.hpp">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\LightingManager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\model.cpp" />
     <ClCompile Include="src\scene.cpp" />
@@ -31,6 +32,7 @@
     <None Include="shaders\book.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\LightingManager.hpp" />
     <ClInclude Include="include\model.hpp" />
     <ClInclude Include="include\scene.hpp" />
     <ClInclude Include="include\shader.hpp" />

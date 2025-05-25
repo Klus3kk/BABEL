@@ -20,6 +20,27 @@ public:
     bool rotating = false;
     float rotationSpeed = 0.0f;
 
+    // NEW: Advanced animation types
+    bool floating = false;
+    bool orbiting = false;
+    bool pulsing = false;
+
+    // NEW: Animation parameters
+    glm::vec3 basePosition;     // Original position for floating/orbiting
+    glm::vec3 orbitCenter;      // Center point for orbital motion
+    float orbitRadius = 2.0f;   // Radius of orbit
+    float orbitSpeed = 1.0f;    // Speed of orbital motion
+    float floatAmplitude = 0.3f; // How high/low to float
+    float floatSpeed = 1.0f;    // Speed of floating motion
+    float pulseAmplitude = 0.1f; // Scale variation for pulsing
+    float pulseSpeed = 2.0f;    // Speed of pulsing
+
+    // NEW: Animation time tracking
+    float animationTime = 0.0f;
+    float orbitTime = 0.0f;
+    float floatTime = 0.0f;
+    float pulseTime = 0.0f;
+
     // Constructor
     SceneObject(const Model* modelPtr,
         const glm::vec3& pos = glm::vec3(0.0f),
@@ -37,6 +58,11 @@ public:
 
     // Enable continuous rotation
     void setRotating(bool enabled, float speed = 1.0f);
+
+    // NEW: Animation control methods
+    void setFloating(bool enabled, float amplitude = 0.3f, float speed = 1.0f);
+    void setOrbiting(bool enabled, const glm::vec3& center, float radius = 2.0f, float speed = 1.0f);
+    void setPulsing(bool enabled, float amplitude = 0.1f, float speed = 2.0f);
 };
 
 // Scene class to manage all objects

@@ -57,8 +57,12 @@ void TextureManager::loadAllTextures() {
     // Load metal textures for lamp
     loadTexture("metal_basecolor", "assets/textures/lamp-textures/Lamp_AlbedoTransparency.png");
 
+    // Load torch texture
+    loadTexture("torch_basecolor", "assets/textures/torch-textures/Torch_texture.png");
+
     std::cout << "All textures loaded!" << std::endl;
 }
+
 
 void TextureManager::bindTextureForObject(const std::string& objectType, Shader& shader) {
     if (objectType == "book") {
@@ -167,6 +171,20 @@ void TextureManager::bindTextureForObject(const std::string& objectType, Shader&
 
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, getTexture("column_metallic")); // Reuse
+        shader.setInt("metallicMap", 2);
+    }
+    // ADD THIS SECTION - Torch texture binding
+    else if (objectType == "torch") {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, getTexture("torch_basecolor"));
+        shader.setInt("baseColorMap", 0);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, getTexture("column_roughness")); // Reuse for roughness
+        shader.setInt("roughnessMap", 1);
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, getTexture("column_metallic")); // Reuse for metallic
         shader.setInt("metallicMap", 2);
     }
 }

@@ -1,9 +1,16 @@
 ﻿#include "scene.hpp"
+#include <cmath>
+#include <cstdlib>
 
 // SceneObject implementation
 SceneObject::SceneObject(const Model* modelPtr, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& scl)
-    : model(modelPtr), position(pos), rotation(rot), scale(scl) {
+    : model(modelPtr), position(pos), rotation(rot), scale(scl), basePosition(pos), orbitCenter(pos) {
     updateModelMatrix();
+
+    // Initialize random animation offsets for variety
+    floatTime = static_cast<float>(rand()) / RAND_MAX * 6.28f; // Random phase
+    orbitTime = static_cast<float>(rand()) / RAND_MAX * 6.28f;
+    pulseTime = static_cast<float>(rand()) / RAND_MAX * 6.28f;
 }
 
 void SceneObject::updateModelMatrix() {
@@ -16,6 +23,40 @@ void SceneObject::updateModelMatrix() {
 }
 
 void SceneObject::update(float deltaTime) {
+    animationTime += deltaTime;
+
+    // Handle orbital motion
+    if (orbiting) {
+        orbitTime += orbitSpeed * deltaTime;
+        float x = orbitCenter.x + orbitRadius * cos(orbitTime);
+        float z = orbitCenter.z + orbitRadius * sin(orbitTime);
+        position.x = x;
+        position.z = z;
+
+        // Optional: Make orbiting objects face their movement direction
+        rotation.y = orbitTime + glm::radians(90.0f);
+    }
+
+    // Handle floating motion (bobbing up and down)
+    if (floating) {
+        floatTime += floatSpeed * deltaTime;
+        if (!orbiting) {
+            position.y = basePosition.y + sin(floatTime) * floatAmplitude;
+        }
+        else {
+            // If both orbiting and floating, add floating to orbital motion
+            position.y = orbitCenter.y + sin(floatTime) * floatAmplitude;
+        }
+    }
+
+    // Handle pulsing (scale variation)
+    if (pulsing) {
+        pulseTime += pulseSpeed * deltaTime;
+        float pulseFactor = 1.0f + sin(pulseTime) * pulseAmplitude;
+        scale = glm::vec3(pulseFactor);
+    }
+
+    // Handle rotation
     if (rotating) {
         // Rotate around Y axis based on rotation speed
         rotation.y += rotationSpeed * deltaTime;
@@ -23,9 +64,11 @@ void SceneObject::update(float deltaTime) {
         // Keep rotation angle in reasonable range
         if (rotation.y > 6.28f) // 2π
             rotation.y -= 6.28f;
-
-        updateModelMatrix();
+        if (rotation.y < -6.28f)
+            rotation.y += 6.28f;
     }
+
+    updateModelMatrix();
 }
 
 void SceneObject::rotate(float yawAmount, float pitchAmount, float rollAmount) {
@@ -38,6 +81,34 @@ void SceneObject::rotate(float yawAmount, float pitchAmount, float rollAmount) {
 void SceneObject::setRotating(bool enabled, float speed) {
     rotating = enabled;
     rotationSpeed = speed;
+}
+
+// NEW: Animation control methods
+void SceneObject::setFloating(bool enabled, float amplitude, float speed) {
+    floating = enabled;
+    floatAmplitude = amplitude;
+    floatSpeed = speed;
+    if (enabled && !orbiting) {
+        basePosition = position; // Store current position as base
+    }
+}
+
+void SceneObject::setOrbiting(bool enabled, const glm::vec3& center, float radius, float speed) {
+    orbiting = enabled;
+    orbitCenter = center;
+    orbitRadius = radius;
+    orbitSpeed = speed;
+    if (enabled) {
+        // Start orbit from current position
+        glm::vec3 offset = position - center;
+        orbitTime = atan2(offset.z, offset.x);
+    }
+}
+
+void SceneObject::setPulsing(bool enabled, float amplitude, float speed) {
+    pulsing = enabled;
+    pulseAmplitude = amplitude;
+    pulseSpeed = speed;
 }
 
 // Scene implementation

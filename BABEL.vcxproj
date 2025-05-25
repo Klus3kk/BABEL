@@ -24,6 +24,7 @@
     <ClCompile Include="src\scene.cpp" />
     <ClCompile Include="src\shader.cpp" />
     <ClCompile Include="src\texture.cpp" />
+    <ClCompile Include="src\TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\book.frag" />
@@ -35,6 +36,7 @@
     <ClInclude Include="include\shader.hpp" />
     <ClInclude Include="include\stb_image.h" />
     <ClInclude Include="include\texture.hpp" />
+    <ClInclude Include="include\TextureManager.hpp" />
     <ClInclude Include="include\tiny_obj_loader.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

@@ -33,12 +33,21 @@
     <ClCompile Include="src\LightingManager.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\portals.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\book.frag">
       <Filter>shaders</Filter>
     </None>
     <None Include="shaders\book.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\portal.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\portal.frag">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>
@@ -65,6 +74,9 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\LightingManager.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\portals.hpp">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

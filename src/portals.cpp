@@ -69,7 +69,7 @@ void PortalSystem::initialize(float roomRadius, float roomHeight) {
         // Depth texture
         glGenTextures(1, &portal.depthTexture);
         glBindTexture(GL_TEXTURE_2D, portal.depthTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, textureSize, textureSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, textureSize, textureSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -79,8 +79,13 @@ void PortalSystem::initialize(float roomRadius, float roomHeight) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, portal.colorTexture, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, portal.depthTexture, 0);
 
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "Portal framebuffer " << i << " not complete!" << std::endl;
+        // Check framebuffer status
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Portal framebuffer " << i << " not complete! Status: 0x" << std::hex << status << std::endl;
+        }
+        else {
+            std::cout << "Portal " << i << " framebuffer created successfully!" << std::endl;
         }
 
         portals.push_back(portal);
@@ -94,107 +99,128 @@ glm::mat4 PortalSystem::calculatePortalView(const Portal& portal,
     const glm::vec3& playerPos,
     const glm::vec3& playerDir,
     int recursionLevel) {
-    // Calculate player position relative to portal
-    glm::vec3 relativePos = playerPos - portal.position;
 
-    // Transform player position through portal to destination space
-    // This is the key to making portals work like in Portal game
+    // Simple approach: just move the camera to the destination room
+    // and offset it based on the player's relative position to the portal
 
-    // Create transformation matrix for portal
-    glm::vec3 portalRight = glm::normalize(glm::cross(portal.normal, glm::vec3(0.0f, 1.0f, 0.0f)));
-    glm::vec3 portalUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 relativeToPortal = playerPos - portal.position;
 
-    // Portal space to world space transformation
-    glm::mat4 portalToWorld = glm::mat4(
-        glm::vec4(portalRight, 0.0f),
-        glm::vec4(portalUp, 0.0f),
-        glm::vec4(-portal.normal, 0.0f), // Flip normal for destination
-        glm::vec4(portal.destinationPos, 1.0f)
-    );
+    // Transform relative position to destination space
+    glm::vec3 virtualCameraPos = portal.destinationPos + relativeToPortal;
 
-    // Transform relative position through portal
-    glm::vec4 transformedRelativePos = portalToWorld * glm::vec4(relativePos, 1.0f);
-
-    // Calculate virtual camera position in destination room
-    glm::vec3 virtualCameraPos = glm::vec3(transformedRelativePos) + portal.destinationPos;
-
-    // Add offset for recursion depth to create infinite effect
+    // Add depth offset for recursion levels
     float depthOffset = recursionLevel * roomVariations[portal.portalId % roomVariations.size()].roomOffset;
-    virtualCameraPos += portal.destinationNormal * depthOffset;
+    virtualCameraPos += glm::vec3(0.0f, 0.0f, depthOffset);
 
-    // Calculate virtual camera target
-    glm::vec3 virtualCameraTarget = virtualCameraPos + playerDir;
+    // Use same camera direction
+    glm::vec3 virtualTarget = virtualCameraPos + playerDir;
 
-    // Create view matrix for virtual camera
-    return glm::lookAt(virtualCameraPos, virtualCameraTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+    return glm::lookAt(virtualCameraPos, virtualTarget, glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-void PortalSystem::renderPortalViews(const std::function<void(const glm::mat4&, const glm::mat4&, int, const RoomVariation&)>& renderScene,
-    const glm::vec3& playerPos, const glm::vec3& playerDir,
+
+void PortalSystem::renderPortalViews(
+    const std::function<void(const glm::mat4&, const glm::mat4&, int, const RoomVariation&)>& renderScene,
+    const glm::vec3& playerPos,
+    const glm::vec3& playerDir,
     const glm::mat4& projection) {
+
     if (!areActive()) return;
 
-    // Render each portal with recursion
+    // Save current viewport
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    // Render each portal view
     for (int portalIndex = 0; portalIndex < portals.size(); portalIndex++) {
         auto& portal = portals[portalIndex];
 
-        // Skip distant portals for performance
-        if (portal.distanceFromPlayer > 50.0f) continue;
+        // Skip very distant portals
+        if (portal.distanceFromPlayer > 80.0f) continue;
 
         // Bind portal framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
         glViewport(0, 0, textureSize, textureSize);
 
-        // Clear with room variation color
-        const RoomVariation& variation = roomVariations[portalIndex % roomVariations.size()];
-        glm::vec3 clearColor = glm::vec3(0.01f, 0.005f, 0.02f) * variation.colorTint;
-        glClearColor(clearColor.r, clearColor.g, clearColor.b, 1.0f);
+        // Clear with the same background as main scene
+        glClearColor(0.01f, 0.005f, 0.02f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Render multiple recursion levels for true infinite effect
-        for (int recursionLevel = 0; recursionLevel < maxRecursionDepth; recursionLevel++) {
-            // Calculate virtual camera view for this recursion level
-            glm::mat4 virtualView = calculatePortalView(portal, playerPos, playerDir, recursionLevel);
+        // Enable depth testing
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
 
-            // Calculate room variation for this level
-            RoomVariation levelVariation = variation;
-            levelVariation.scaleMultiplier *= (1.0f - recursionLevel * 0.1f); // Shrink distant rooms
-            levelVariation.colorTint *= (1.0f - recursionLevel * 0.15f); // Darken distant rooms
+        // Calculate virtual camera view
+        glm::mat4 virtualView = calculatePortalView(portal, playerPos, playerDir, 0);
 
-            // Enable depth testing but allow overlapping
-            if (recursionLevel > 0) {
-                glDepthFunc(GL_LEQUAL);
-            }
-            else {
-                glDepthFunc(GL_LESS);
-            }
+        // Create room variation for this portal
+        const RoomVariation& variation = roomVariations[portalIndex % roomVariations.size()];
 
-            // Render scene from virtual camera perspective
-            renderScene(virtualView, projection, recursionLevel, levelVariation);
+        // Render the scene from the virtual camera
+        // This should render ALL objects (books, shelves, torches, etc.)
+        renderScene(virtualView, projection, 0, variation);
+
+        // Optional: Render additional recursion levels for infinite effect
+        for (int recursionLevel = 1; recursionLevel < maxRecursionDepth; recursionLevel++) {
+            glDepthFunc(GL_LEQUAL); // Allow some overlap
+
+            glm::mat4 deeperView = calculatePortalView(portal, playerPos, playerDir, recursionLevel);
+            RoomVariation deeperVariation = variation;
+            deeperVariation.scaleMultiplier *= (1.0f - recursionLevel * 0.1f);
+            deeperVariation.colorTint *= (1.0f - recursionLevel * 0.2f);
+
+            renderScene(deeperView, projection, recursionLevel, deeperVariation);
         }
 
-        // Reset depth function
         glDepthFunc(GL_LESS);
     }
 
     // Restore main framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 }
-
 void PortalSystem::bindPortalTexture(int portalIndex, Shader& shader) {
     if (portalIndex >= 0 && portalIndex < portals.size() && portals[portalIndex].active) {
-        glActiveTexture(GL_TEXTURE0);
+        // Bind the portal's rendered view texture
         glBindTexture(GL_TEXTURE_2D, portals[portalIndex].colorTexture);
-        shader.setInt("baseColorMap", 0);
 
-        // Portal effect - make it glow slightly
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        shader.setInt("roughnessMap", 1);
+        // Check if texture is valid
+        GLint textureWidth;
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &textureWidth);
+        if (textureWidth != textureSize) {
+            std::cerr << "Warning: Portal " << portalIndex << " texture may not be properly initialized!" << std::endl;
+        }
+    }
+    else {
+        // Bind a fallback texture or create a simple colored texture
+        static GLuint fallbackTexture = 0;
+        if (fallbackTexture == 0) {
+            glGenTextures(1, &fallbackTexture);
+            glBindTexture(GL_TEXTURE_2D, fallbackTexture);
 
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        shader.setInt("metallicMap", 2);
+            // Create a simple blue swirling pattern
+            unsigned char data[64 * 64 * 3];
+            for (int y = 0; y < 64; y++) {
+                for (int x = 0; x < 64; x++) {
+                    int index = (y * 64 + x) * 3;
+                    float fx = (x - 32) / 32.0f;
+                    float fy = (y - 32) / 32.0f;
+                    float dist = sqrt(fx * fx + fy * fy);
+                    float angle = atan2(fy, fx);
+
+                    data[index + 0] = (unsigned char)(128 + 127 * sin(angle * 4 + dist * 8)); // Red
+                    data[index + 1] = (unsigned char)(64 + 64 * cos(dist * 6)); // Green
+                    data[index + 2] = (unsigned char)(200 + 55 * sin(dist * 10)); // Blue
+                }
+            }
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 64, 64, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        }
+        glBindTexture(GL_TEXTURE_2D, fallbackTexture);
     }
 }
 
@@ -208,11 +234,52 @@ void PortalSystem::setActive(bool active) {
     for (auto& portal : portals) {
         portal.active = active;
     }
+    std::cout << "Portals " << (active ? "ENABLED" : "DISABLED") << std::endl;
 }
 
 void PortalSystem::setQuality(int size) {
-    textureSize = size;
-    // Note: Would need to recreate framebuffers for full implementation
+    if (size != textureSize) {
+        textureSize = size;
+
+        // Recreate framebuffers with new size
+        for (auto& portal : portals) {
+            if (portal.framebuffer != 0) {
+                // Delete old textures
+                if (portal.colorTexture != 0) glDeleteTextures(1, &portal.colorTexture);
+                if (portal.depthTexture != 0) glDeleteTextures(1, &portal.depthTexture);
+
+                // Recreate color texture
+                glGenTextures(1, &portal.colorTexture);
+                glBindTexture(GL_TEXTURE_2D, portal.colorTexture);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureSize, textureSize, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+                // Recreate depth texture
+                glGenTextures(1, &portal.depthTexture);
+                glBindTexture(GL_TEXTURE_2D, portal.depthTexture);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, textureSize, textureSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+                // Reattach to framebuffer
+                glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, portal.colorTexture, 0);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, portal.depthTexture, 0);
+
+                if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+                    std::cerr << "Portal framebuffer recreation failed!" << std::endl;
+                }
+            }
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        std::cout << "Portal quality updated to " << textureSize << "x" << textureSize << std::endl;
+    }
 }
 
 void PortalSystem::setRecursionDepth(int depth) {
@@ -222,9 +289,18 @@ void PortalSystem::setRecursionDepth(int depth) {
 
 void PortalSystem::cleanup() {
     for (auto& portal : portals) {
-        if (portal.framebuffer) glDeleteFramebuffers(1, &portal.framebuffer);
-        if (portal.colorTexture) glDeleteTextures(1, &portal.colorTexture);
-        if (portal.depthTexture) glDeleteTextures(1, &portal.depthTexture);
+        if (portal.framebuffer) {
+            glDeleteFramebuffers(1, &portal.framebuffer);
+            portal.framebuffer = 0;
+        }
+        if (portal.colorTexture) {
+            glDeleteTextures(1, &portal.colorTexture);
+            portal.colorTexture = 0;
+        }
+        if (portal.depthTexture) {
+            glDeleteTextures(1, &portal.depthTexture);
+            portal.depthTexture = 0;
+        }
     }
     portals.clear();
     std::cout << "Portal system cleaned up." << std::endl;
@@ -244,6 +320,9 @@ void PortalSystem::printDebugInfo() const {
         std::cout << "  Destination: (" << portal.destinationPos.x << ", " << portal.destinationPos.y << ", " << portal.destinationPos.z << ")" << std::endl;
         std::cout << "  Distance: " << portal.distanceFromPlayer << std::endl;
         std::cout << "  Active: " << (portal.active ? "YES" : "NO") << std::endl;
+        std::cout << "  Framebuffer ID: " << portal.framebuffer << std::endl;
+        std::cout << "  Color Texture ID: " << portal.colorTexture << std::endl;
+        std::cout << "  Depth Texture ID: " << portal.depthTexture << std::endl;
     }
     std::cout << "==========================\n" << std::endl;
 }

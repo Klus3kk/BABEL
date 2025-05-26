@@ -121,8 +121,6 @@ void printSceneDebugInfo(const Scene& scene,
         if (obj.rotating) {
             std::cout << "  Rotating: YES (speed: " << obj.rotationSpeed << ")" << std::endl;
         }
-
-        // Enhanced debug info for new animation types
         if (obj.floating) {
             std::cout << "  Floating: YES (amplitude: " << obj.floatAmplitude << ", speed: " << obj.floatSpeed << ")" << std::endl;
         }
@@ -446,7 +444,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL - Dark Library of Infinite Knowledge", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window!\n";
         glfwTerminate();
@@ -464,12 +462,15 @@ int main() {
     }
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     srand(static_cast<unsigned int>(time(nullptr)));
 
     std::cout << "GL ready. Vendor: " << glGetString(GL_VENDOR) << std::endl;
 
-    // Load shader
+    // Load shaders
     Shader basicShader("shaders/book.vert", "shaders/book.frag");
+    Shader portalShader("shaders/portal.vert", "shaders/portal.frag");
 
     // Load all textures using TextureManager
     TextureManager::loadAllTextures();
@@ -499,27 +500,26 @@ int main() {
     // Create portal system
     PortalSystem portalSystem;
 
-    std::cout << "Setting up dark library room..." << std::endl;
+    std::cout << "Setting up library room..." << std::endl;
 
     // FLOOR
     scene.addObject(floorModel.get(),
-        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(1.1f, 0.0f, 1.0f),
         glm::vec3(0.0f, glm::radians(90.0f), 0.0f),
-        glm::vec3(5.0f, 1.0f, 5.0f));
+        glm::vec3(2.5f, 1.0f, 2.5f));
 
     // CEILING
     scene.addObject(ceilingModel.get(),
-        glm::vec3(0.0f, roomHeight + 0.4f, 0.0f),
-        glm::vec3(0.0f, glm::radians(90.0f), 0.0f),
-        glm::vec3(3.0f, 2.0f, 3.0f));
+        glm::vec3(0.0f, roomHeight + 1.1f, 0.0f),
+        glm::vec3(0.0f, glm::radians(105.0f), 0.0f),
+        glm::vec3(3.2f, 2.0f, 3.2f));
 
-    // LAMP - Enhanced with pulsing (dimmed for dark atmosphere)
+    // LAMP
     scene.addObject(lampModel.get(),
-        glm::vec3(0.0f, roomHeight + 1.0f, 0.0f),
+        glm::vec3(0.0f, roomHeight + 0.9f, 0.0f),
         glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(3.0f, 3.0f, 3.0f));
-    scene.objects[2].setRotating(true, 0.2f);
-    scene.objects[2].setPulsing(true, 0.05f, 3.0f);
+        glm::vec3(3.5f, 2.0f, 3.5f));
+    scene.objects[2].setRotating(true, 0.3f);
 
     // WALLS
     for (int i = 0; i < numSides; i++) {
@@ -531,21 +531,21 @@ int main() {
             wallRotation += glm::radians(90.0f);
         }
         scene.addObject(wallModel.get(),
-            glm::vec3(x, roomHeight * 0.05f, z),
+            glm::vec3(x, 0.05f, z),
             glm::vec3(0.0f, wallRotation, 0.0f),
-            glm::vec3(0.05f, 0.05f, 0.05f));
+            glm::vec3(0.014f, 0.048f, 0.014f));
     }
 
     // COLUMNS
     for (int i = 0; i < 4; i++) {
-        float angle = glm::radians(90.0f * static_cast<float>(i));
-        float x = 3.0f * cos(angle);
-        float z = 3.0f * sin(angle);
+        float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
+        float x = 2.8f * cos(angle);
+        float z = 2.8f * sin(angle);
 
         scene.addObject(columnModel.get(),
             glm::vec3(x, 0.0f, z),
             glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.8f, 3.0f, 0.8f));
+            glm::vec3(1.5f, 3.2f, 1.5f));
     }
 
     // PORTALS
@@ -558,7 +558,7 @@ int main() {
         scene.addObject(portalModel.get(),
             glm::vec3(x, 0.0f, z),
             glm::vec3(0.0f, rotationToFaceCenter, 0.0f),
-            glm::vec3(1.3f, 1.4f, 1.3f));
+            glm::vec3(1.3f, 1.3f, 1.3f));
     }
 
     // BOOKSHELVES
@@ -574,11 +574,11 @@ int main() {
 
         if (i % 2 == 0) {
             rotationToFaceCenter = angle + glm::radians(90.0f);
-            scale = glm::vec3(2.0f, 5.0f, 3.0f);
+            scale = glm::vec3(2.0f, 3.7f, 3.0f);
         }
         else {
             rotationToFaceCenter = angle + glm::radians(270.0f);
-            scale = glm::vec3(1.2f, 5.0f, 1.4f);
+            scale = glm::vec3(1.2f, 3.7f, 1.4f);
         }
 
         scene.addObject(shelfModel,
@@ -587,75 +587,75 @@ int main() {
             scale);
     }
 
-    // TORCH MODELS - Place torches hanging on columns and walls
-    std::cout << "Placing torch models (hanging on columns and walls)..." << std::endl;
+    //// TORCH MODELS - Place torches hanging on columns and walls
+    //std::cout << "Placing torch models (hanging on columns and walls)..." << std::endl;
 
-    // Wall torches - hanging on the octagonal walls
-    for (int i = 0; i < 8; i++) {
-        float angle = glm::radians(45.0f * static_cast<float>(i));
+    //// Wall torches - hanging on the octagonal walls
+    //for (int i = 0; i < 8; i++) {
+    //    float angle = glm::radians(45.0f * static_cast<float>(i));
 
-        // Position torches closer to the wall surface
-        glm::vec3 torchPos = glm::vec3(
-            roomRadius * 0.92f * cos(angle), // Very close to wall
-            2.2f, // Wall-mounted height
-            roomRadius * 0.92f * sin(angle)
-        );
+    //    // Position torches closer to the wall surface
+    //    glm::vec3 torchPos = glm::vec3(
+    //        roomRadius * 0.92f * cos(angle), // Very close to wall
+    //        2.2f, // Wall-mounted height
+    //        roomRadius * 0.92f * sin(angle)
+    //    );
 
-        scene.addObject(torchModel.get(),
-            torchPos,
-            glm::vec3(0.0f, angle + glm::radians(180.0f), 0.0f), // Face inward toward room
-            glm::vec3(0.8f, 0.8f, 0.8f)); // Smaller size for wall mounting
-    }
+    //    scene.addObject(torchModel.get(),
+    //        torchPos,
+    //        glm::vec3(0.0f, angle + glm::radians(180.0f), 0.0f), // Face inward toward room
+    //        glm::vec3(0.8f, 0.8f, 0.8f)); // Smaller size for wall mounting
+    //}
 
-    // Column torches - hanging FROM the columns (not floating beside them)
-    for (int i = 0; i < 4; i++) {
-        float angle = glm::radians(90.0f * static_cast<float>(i));
+    //// Column torches - hanging FROM the columns (not floating beside them)
+    //for (int i = 0; i < 4; i++) {
+    //    float angle = glm::radians(90.0f * static_cast<float>(i));
 
-        // Calculate column center position
-        glm::vec3 columnCenter = glm::vec3(3.0f * cos(angle), 0.0f, 3.0f * sin(angle));
+    //    // Calculate column center position
+    //    glm::vec3 columnCenter = glm::vec3(3.0f * cos(angle), 0.0f, 3.0f * sin(angle));
 
-        // Position torch to hang from the column at shoulder height
-        // Offset slightly outward from column surface
-        float offsetDistance = 1.0f; // Distance from column center
-        glm::vec3 torchPos = glm::vec3(
-            columnCenter.x + offsetDistance * cos(angle), // Offset outward from column
-            2.8f, // Hanging height on column
-            columnCenter.z + offsetDistance * sin(angle)
-        );
+    //    // Position torch to hang from the column at shoulder height
+    //    // Offset slightly outward from column surface
+    //    float offsetDistance = 1.0f; // Distance from column center
+    //    glm::vec3 torchPos = glm::vec3(
+    //        columnCenter.x + offsetDistance * cos(angle), // Offset outward from column
+    //        2.8f, // Hanging height on column
+    //        columnCenter.z + offsetDistance * sin(angle)
+    //    );
 
-        scene.addObject(torchModel.get(),
-            torchPos,
-            glm::vec3(0.0f, angle + glm::radians(90.0f), 0.0f), // Perpendicular to column face
-            glm::vec3(1.0f, 1.0f, 1.0f)); // Normal size for column torches
+    //    scene.addObject(torchModel.get(),
+    //        torchPos,
+    //        glm::vec3(0.0f, angle + glm::radians(90.0f), 0.0f), // Perpendicular to column face
+    //        glm::vec3(1.0f, 1.0f, 1.0f)); // Normal size for column torches
 
-        // Add a second torch on the opposite side of each column for more light
-        glm::vec3 torchPos2 = glm::vec3(
-            columnCenter.x - offsetDistance * cos(angle), // Opposite side
-            2.8f,
-            columnCenter.z - offsetDistance * sin(angle)
-        );
+    //    // Add a second torch on the opposite side of each column for more light
+    //    glm::vec3 torchPos2 = glm::vec3(
+    //        columnCenter.x - offsetDistance * cos(angle), // Opposite side
+    //        2.8f,
+    //        columnCenter.z - offsetDistance * sin(angle)
+    //    );
 
-        scene.addObject(torchModel.get(),
-            torchPos2,
-            glm::vec3(0.0f, angle + glm::radians(270.0f), 0.0f), // Face opposite direction
-            glm::vec3(1.0f, 1.0f, 1.0f));
-    }
+    //    scene.addObject(torchModel.get(),
+    //        torchPos2,
+    //        glm::vec3(0.0f, angle + glm::radians(270.0f), 0.0f), // Face opposite direction
+    //        glm::vec3(1.0f, 1.0f, 1.0f));
+    //}
 
-    // ADDITIONAL: Add some torches on bookshelves for reading light
-    for (int i = 0; i < 4; i++) {
-        float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
-        float x = roomRadius * 0.7f * cos(angle);
-        float z = roomRadius * 0.7f * sin(angle);
+    //// ADDITIONAL: Add some torches on bookshelves for reading light
+    //for (int i = 0; i < 4; i++) {
+    //    float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
+    //    float x = roomRadius * 0.7f * cos(angle);
+    //    float z = roomRadius * 0.7f * sin(angle);
 
-        // Small reading torches on top of bookshelves
-        scene.addObject(torchModel.get(),
-            glm::vec3(x, 4.2f, z), // On top of bookshelf
-            glm::vec3(0.0f, angle, 0.0f),
-            glm::vec3(0.6f, 0.6f, 0.6f)); // Small reading torches
-    }
+    //    // Small reading torches on top of bookshelves
+    //    scene.addObject(torchModel.get(),
+    //        glm::vec3(x, 4.2f, z), // On top of bookshelf
+    //        glm::vec3(0.0f, angle, 0.0f),
+    //        glm::vec3(0.6f, 0.6f, 0.6f)); // Small reading torches
+    //}
 
     // ENHANCED FLOATING BOOKS
-    std::cout << "Setting up enhanced animated books..." << std::endl;
+    std::cout << "Setting up animations (books)..." << std::endl;
 
     // Central orbiting and floating books
     for (int i = 0; i < 6; i++) {
@@ -667,7 +667,7 @@ int main() {
         scene.addObject(bookModel.get(),
             glm::vec3(x, 2.0f, z),
             glm::vec3(0.0f, angle, 0.0f),
-            glm::vec3(1.3f, 1.3f, 1.3f));
+            glm::vec3(2.3f, 2.3f, 2.3f));
 
         // Enhanced animations - vary by book
         switch (i % 3) {
@@ -734,7 +734,7 @@ int main() {
         scene.objects[bookIndex].setRotating(true, 0.3f);
     }
 
-    // SETUP DARK LIBRARY LIGHTING
+    // SETUP LIBRARY LIGHTING
     std::cout << "Setting up dark library lighting with dramatic torches..." << std::endl;
     lightingManager.setupLibraryLighting(roomRadius, roomHeight);
 
@@ -753,8 +753,9 @@ int main() {
             basicShader.setMat4("view", &view[0][0]);
             basicShader.setMat4("projection", &projection[0][0]);
 
-            // Adjust viewPos based on recursion level
-            glm::vec3 virtualViewPos = glm::vec3(0.0f, 5.0f, 20.0f + recursionLevel * 30.0f);
+            // Extract camera position from view matrix
+            glm::mat4 invView = glm::inverse(view);
+            glm::vec3 virtualViewPos = glm::vec3(invView[3]);
             basicShader.setVec3("viewPos", virtualViewPos.x, virtualViewPos.y, virtualViewPos.z);
 
             // Create modified lighting for room variation
@@ -764,30 +765,33 @@ int main() {
             for (auto& light : modifiedLighting.pointLights) {
                 light.color *= variation.colorTint;
                 light.intensity *= variation.scaleMultiplier;
-                light.position *= variation.scaleMultiplier;
+                // Apply position offset for different rooms
+                light.position += glm::vec3(0.0f, 0.0f, recursionLevel * variation.roomOffset);
             }
             modifiedLighting.ambientColor *= variation.colorTint;
 
             // Bind modified lighting
             modifiedLighting.bindToShader(basicShader);
 
-            // Render all objects except portals (to prevent infinite recursion in portals)
+            // Render all objects except portals at deeper recursion levels
             for (size_t i = 0; i < scene.objects.size(); i++) {
                 const auto& obj = scene.objects[i];
 
-                if (obj.model == portalModel.get()) {
-                    // Only render portals at recursion level 0 to prevent infinite recursion
-                    if (recursionLevel > 0) continue;
+                // Skip portal objects at recursion levels > 1 to prevent infinite recursion
+                if (obj.model == portalModel.get() && recursionLevel > 1) {
+                    continue;
                 }
 
-                // Apply room variation scaling
+                // Apply room variation scaling and offset
                 glm::mat4 scaledModel = obj.modelMatrix;
-                if (variation.scaleMultiplier != 1.0f) {
+                if (variation.scaleMultiplier != 1.0f || recursionLevel > 0) {
                     glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(variation.scaleMultiplier));
-                    scaledModel = scaleMatrix * scaledModel;
+                    glm::mat4 offsetMatrix = glm::translate(glm::mat4(1.0f),
+                        glm::vec3(0.0f, 0.0f, recursionLevel * variation.roomOffset));
+                    scaledModel = offsetMatrix * scaleMatrix * scaledModel;
                 }
 
-                // Bind textures
+                // Bind textures based on object type
                 if (obj.model == bookModel.get()) {
                     TextureManager::bindTextureForObject("book", basicShader);
                 }
@@ -818,8 +822,8 @@ int main() {
             }
         };
 
-    std::cout << "Dark library setup complete!" << std::endl;
-    std::cout << "\n=== DARK BABEL CONTROLS ===" << std::endl;
+    std::cout << "Library setup complete!" << std::endl;
+    std::cout << "\n=== BABEL CONTROLS ===" << std::endl;
     std::cout << "  WASD + Mouse - Move camera" << std::endl;
     std::cout << "  Space/Ctrl - Up/Down" << std::endl;
     std::cout << "  H - Debug info" << std::endl;
@@ -875,7 +879,9 @@ int main() {
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 100.0f);
 
         // PHASE 1: Render recursive portal views FIRST
-        portalSystem.renderPortalViews(renderSceneFunction, cameraPos, cameraFront, projection);
+        if (portalSystem.areActive()) {
+            portalSystem.renderPortalViews(renderSceneFunction, cameraPos, cameraFront, projection);
+        }
 
         // PHASE 2: Render main scene to screen
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -883,6 +889,7 @@ int main() {
         glClearColor(0.01f, 0.005f, 0.02f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Draw all non-portal objects with basic shader
         basicShader.use();
         basicShader.setMat4("view", &view[0][0]);
         basicShader.setMat4("projection", &projection[0][0]);
@@ -891,11 +898,16 @@ int main() {
         // Bind all lighting to shader
         lightingManager.bindToShader(basicShader);
 
-        // Draw all objects
+        // Draw all objects except portals first
         for (size_t i = 0; i < scene.objects.size(); i++) {
             const auto& obj = scene.objects[i];
 
-            // Determine object type and bind appropriate texture
+            // Skip portal objects - we'll render them separately
+            if (obj.model == portalModel.get()) {
+                continue;
+            }
+
+            // Bind appropriate texture for each object type
             if (obj.model == bookModel.get()) {
                 TextureManager::bindTextureForObject("book", basicShader);
             }
@@ -920,31 +932,90 @@ int main() {
             else if (obj.model == torchModel.get()) {
                 TextureManager::bindTextureForObject("torch", basicShader);
             }
-            else if (obj.model == portalModel.get()) {
-                // Determine which portal this is based on position
-                int portalId = 0;
-                float minDist = 1000.0f;
-                for (int p = 0; p < 4; p++) {
-                    float angle = glm::radians(90.0f * static_cast<float>(p));
-                    glm::vec3 expectedPos = glm::vec3(
-                        roomRadius * 0.8f * cos(angle),
-                        roomHeight * 0.3f,
-                        roomRadius * 0.8f * sin(angle)
-                    );
-                    float dist = glm::length(obj.position - expectedPos);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        portalId = p;
-                    }
-                }
-
-                // Bind specific portal texture
-                portalSystem.bindPortalTexture(portalId, basicShader);
-            }
 
             // Set model matrix and draw
             basicShader.setMat4("model", &obj.modelMatrix[0][0]);
             obj.model->draw();
+        }
+
+        // PHASE 3: Render portals with portal shader
+        if (scene.objects.size() > 0) {
+            portalShader.use();
+            portalShader.setMat4("view", &view[0][0]);
+            portalShader.setMat4("projection", &projection[0][0]);
+            portalShader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+            portalShader.setFloat("time", currentFrame);
+
+            // Bind lighting to portal shader (same as basic shader)
+            lightingManager.bindToShader(portalShader);
+
+            // Set portal activity state
+            bool portalsActive = portalSystem.areActive();
+            portalShader.setBool("portalActive", portalsActive);
+            portalShader.setFloat("portalIntensity", 1.0f);
+
+            // Render each portal
+            int portalCount = 0;
+            for (size_t i = 0; i < scene.objects.size(); i++) {
+                const auto& obj = scene.objects[i];
+
+                if (obj.model == portalModel.get()) {
+                    // Bind stone textures for the frame (always bind these)
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, TextureManager::getTexture("portal_basecolor"));
+                    portalShader.setInt("baseColorMap", 1);
+
+                    glActiveTexture(GL_TEXTURE2);
+                    glBindTexture(GL_TEXTURE_2D, TextureManager::getTexture("column_roughness"));
+                    portalShader.setInt("roughnessMap", 2);
+
+                    glActiveTexture(GL_TEXTURE3);
+                    glBindTexture(GL_TEXTURE_2D, TextureManager::getTexture("column_metallic"));
+                    portalShader.setInt("metallicMap", 3);
+
+                    if (portalsActive && portalCount < portalSystem.getPortalCount()) {
+                        // Bind the portal's recursive view texture for the center opening
+                        glActiveTexture(GL_TEXTURE0);
+                        portalSystem.bindPortalTexture(portalCount, portalShader);
+                        portalShader.setInt("portalView", 0);
+
+                        //std::cout << "Rendering active portal " << portalCount << std::endl;
+                    }
+                    else {
+                        // Inactive portal - just show black in center
+                        glActiveTexture(GL_TEXTURE0);
+                        static GLuint blackTexture = 0;
+                        if (blackTexture == 0) {
+                            glGenTextures(1, &blackTexture);
+                            glBindTexture(GL_TEXTURE_2D, blackTexture);
+                            unsigned char blackData[4] = { 0, 0, 0, 255 };
+                            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, blackData);
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                        }
+                        glBindTexture(GL_TEXTURE_2D, blackTexture);
+                        portalShader.setInt("portalView", 0);
+                    }
+
+                    // Set model matrix and draw portal
+                    portalShader.setMat4("model", &obj.modelMatrix[0][0]);
+                    obj.model->draw();
+
+                    portalCount++;
+                }
+            }
+        }
+        else {
+            // Render inactive portals with basic shader (dark stone)
+            basicShader.use();
+            for (size_t i = 0; i < scene.objects.size(); i++) {
+                const auto& obj = scene.objects[i];
+                if (obj.model == portalModel.get()) {
+                    TextureManager::bindTextureForObject("portal", basicShader);
+                    basicShader.setMat4("model", &obj.modelMatrix[0][0]);
+                    obj.model->draw();
+                }
+            }
         }
 
         glfwSwapBuffers(window);

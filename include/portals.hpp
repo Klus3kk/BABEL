@@ -36,14 +36,24 @@ private:
     int textureSize = 512;
     int maxRecursionDepth = 4; // How many levels deep to render
 
-    std::vector<RoomVariation> roomVariations;
+
+
+    // Infinite library additions
+    bool infiniteMode = true;
+    glm::ivec3 lastPlayerRoom = glm::ivec3(INT_MAX);
+    float roomGridSize = 30.0f;
 
 public:
     PortalSystem();
     ~PortalSystem();
-
+    std::vector<RoomVariation> roomVariations;
     void initialize(float roomRadius, float roomHeight);
     void renderPortalViews(const std::function<void(const glm::mat4&, const glm::mat4&, int, const RoomVariation&)>& renderScene,
+        const glm::vec3& playerPos, const glm::vec3& playerDir,
+        const glm::mat4& projection);
+
+    // Enhanced portal rendering with optimization
+    void renderPortalViewsOptimized(const std::function<void(const glm::mat4&, const glm::mat4&, int, const RoomVariation&)>& renderScene,
         const glm::vec3& playerPos, const glm::vec3& playerDir,
         const glm::mat4& projection);
 
@@ -59,7 +69,18 @@ public:
     void setRecursionDepth(int depth);
     void cleanup();
 
+    // Infinite library methods
+    void forceGenerateRooms(const glm::vec3& playerPos);
+    void generateInfiniteRooms(const glm::vec3& playerPos);
+    void updateRoomGeneration(const glm::vec3& playerPos);
+    void setInfiniteMode(bool enabled) { infiniteMode = enabled; }
+
     size_t getPortalCount() const { return portals.size(); }
     bool areActive() const { return !portals.empty() && portals[0].active; }
     void printDebugInfo() const;
+
+private:
+    // Helper methods for infinite library
+    glm::ivec3 worldToRoomGrid(const glm::vec3& worldPos);
+    RoomVariation generateRoomVariation(int x, int y, int z);
 };

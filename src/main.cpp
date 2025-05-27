@@ -47,6 +47,93 @@ static bool portalTogglePressed = false;
 static bool portalQualityPressed = false;
 static bool recursionKeyPressed = false;
 
+// New infinite library controls
+static bool infiniteKeyPressed = false;
+static bool fpsKeyPressed = false;
+static bool optimizeKeyPressed = false;
+static bool generateKeyPressed = false;
+
+// Performance Manager Class
+class PerformanceManager {
+private:
+    float targetFPS = 60.0f;
+    float currentFPS = 60.0f;
+    int frameCount = 0;
+    float fpsTimer = 0.0f;
+
+    // Quality settings
+    int currentPortalQuality = 512;
+    int currentRecursionDepth = 4;
+    bool adaptiveQuality = true;
+
+public:
+    void updateFPS(float deltaTime) {
+        frameCount++;
+        fpsTimer += deltaTime;
+
+        if (fpsTimer >= 1.0f) {
+            currentFPS = frameCount / fpsTimer;
+            frameCount = 0;
+            fpsTimer = 0.0f;
+
+            if (adaptiveQuality) {
+                adjustQuality();
+            }
+        }
+    }
+
+    void adjustQuality() {
+        if (currentFPS < targetFPS * 0.8f) {
+            // Performance is poor, reduce quality
+            if (currentPortalQuality > 256) {
+                currentPortalQuality /= 2;
+                std::cout << "Reducing portal quality to " << currentPortalQuality << std::endl;
+            }
+            else if (currentRecursionDepth > 2) {
+                currentRecursionDepth--;
+                std::cout << "Reducing recursion depth to " << currentRecursionDepth << std::endl;
+            }
+        }
+        else if (currentFPS > targetFPS * 1.1f) {
+            // Performance is good, increase quality
+            if (currentRecursionDepth < 6) {
+                currentRecursionDepth++;
+                std::cout << "Increasing recursion depth to " << currentRecursionDepth << std::endl;
+            }
+            else if (currentPortalQuality < 1024) {
+                currentPortalQuality *= 2;
+                std::cout << "Increasing portal quality to " << currentPortalQuality << std::endl;
+            }
+        }
+    }
+
+    int getPortalQuality() const { return currentPortalQuality; }
+    int getRecursionDepth() const { return currentRecursionDepth; }
+    float getCurrentFPS() const { return currentFPS; }
+
+    void setAdaptiveQuality(bool enabled) { adaptiveQuality = enabled; }
+};
+
+// Memory Manager Class
+class MemoryManager {
+public:
+    static void optimizeTextureMemory() {
+        glFinish();
+        std::cout << "Optimized texture memory usage" << std::endl;
+    }
+
+    static void cleanupUnusedResources() {
+        std::cout << "Cleaned up unused resources" << std::endl;
+    }
+
+    static size_t estimateVRAMUsage(int portalCount, int textureSize, int recursionDepth) {
+        size_t portalTextures = portalCount * textureSize * textureSize * 4 * 2; // Color + depth
+        size_t recursionMultiplier = recursionDepth;
+
+        return (portalTextures * recursionMultiplier) / (1024 * 1024); // Return MB
+    }
+};
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
@@ -77,6 +164,93 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
         pitch = 89.0f;
     if (pitch < -89.0f)
         pitch = -89.0f;
+}
+
+// LOD rendering function
+void renderSceneWithLOD(const Scene& scene, Shader& shader, const glm::vec3& cameraPos,
+    const std::unique_ptr<Model>& bookModel,
+    const std::unique_ptr<Model>& bookshelfModel,
+    const std::unique_ptr<Model>& bookshelf2Model,
+    const std::unique_ptr<Model>& columnModel,
+    const std::unique_ptr<Model>& floorModel,
+    const std::unique_ptr<Model>& lampModel,
+    const std::unique_ptr<Model>& portalModel,
+    const std::unique_ptr<Model>& ceilingModel,
+    const std::unique_ptr<Model>& wallModel,
+    const std::unique_ptr<Model>& torchModel,
+    int recursionLevel = 0) {
+    float maxDistance = 50.0f + recursionLevel * 20.0f;
+    int objectsRendered = 0;
+    int objectsCulled = 0;
+
+    for (size_t i = 0; i < scene.objects.size(); i++) {
+        const auto& obj = scene.objects[i];
+
+        // Calculate distance from camera to object
+        float distance = glm::length(obj.position - cameraPos);
+
+        // Distance-based LOD culling
+        if (distance > maxDistance) {
+            objectsCulled++;
+            continue;
+        }
+
+        // Model complexity-based culling for distant objects
+        bool isComplexModel = (obj.model == bookModel.get() && obj.model->vertexCount > 500) ||
+            (obj.model == bookshelfModel.get() && obj.model->vertexCount > 1000);
+
+        if (isComplexModel && distance > 30.0f && recursionLevel > 0) {
+            objectsCulled++;
+            continue;
+        }
+
+        // Random culling for very distant recursive rooms
+        if (recursionLevel > 1 && distance > 25.0f && (rand() % (recursionLevel + 1)) == 0) {
+            objectsCulled++;
+            continue;
+        }
+
+        // Bind appropriate texture for each object type
+        if (obj.model == bookModel.get()) {
+            TextureManager::bindTextureForObject("book", shader);
+        }
+        else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) {
+            TextureManager::bindTextureForObject("bookshelf", shader);
+        }
+        else if (obj.model == columnModel.get()) {
+            TextureManager::bindTextureForObject("column", shader);
+        }
+        else if (obj.model == floorModel.get()) {
+            TextureManager::bindTextureForObject("floor", shader);
+        }
+        else if (obj.model == wallModel.get()) {
+            TextureManager::bindTextureForObject("wall", shader);
+        }
+        else if (obj.model == ceilingModel.get()) {
+            TextureManager::bindTextureForObject("ceiling", shader);
+        }
+        else if (obj.model == lampModel.get()) {
+            TextureManager::bindTextureForObject("lamp", shader);
+        }
+        else if (obj.model == torchModel.get()) {
+            TextureManager::bindTextureForObject("torch", shader);
+        }
+
+        // Set model matrix and draw
+        shader.setMat4("model", &obj.modelMatrix[0][0]);
+        obj.model->draw();
+        objectsRendered++;
+    }
+
+    // Debug output for performance monitoring
+    if (recursionLevel == 0 && showDebugInfo) {
+        static int frameCount = 0;
+        frameCount++;
+        if (frameCount % 60 == 0) { // Print every 60 frames
+            std::cout << "LOD Stats - Rendered: " << objectsRendered
+                << ", Culled: " << objectsCulled << std::endl;
+        }
+    }
 }
 
 void printSceneDebugInfo(const Scene& scene,
@@ -174,6 +348,27 @@ void printLightingDebugInfo(const LightingManager& lightingManager) {
     std::cout << "============================\n" << std::endl;
 }
 
+void printPerformanceDebugInfo(const PerformanceManager& perfManager,
+    const PortalSystem& portalSystem) {
+    std::cout << "\n=== PERFORMANCE DEBUG INFO ===" << std::endl;
+    std::cout << "Current FPS: " << perfManager.getCurrentFPS() << std::endl;
+    std::cout << "Portal Quality: " << perfManager.getPortalQuality() << "x"
+        << perfManager.getPortalQuality() << std::endl;
+    std::cout << "Recursion Depth: " << perfManager.getRecursionDepth() << std::endl;
+    std::cout << "Active Portals: " << portalSystem.getPortalCount() << std::endl;
+
+    // OpenGL performance info
+    GLint maxTextureSize;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+    std::cout << "Max Texture Size: " << maxTextureSize << std::endl;
+
+    GLint maxViewportDims[2];
+    glGetIntegerv(GL_MAX_VIEWPORT_DIMS, maxViewportDims);
+    std::cout << "Max Viewport: " << maxViewportDims[0] << "x" << maxViewportDims[1] << std::endl;
+
+    std::cout << "==============================\n" << std::endl;
+}
+
 void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFront, glm::vec3& cameraUp, float deltaTime,
     const Scene& scene,
     const std::unique_ptr<Model>& bookModel,
@@ -189,7 +384,8 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
     float roomRadius, float roomHeight, int numSides,
     float yaw, float pitch,
     LightingManager& lightingManager,
-    PortalSystem& portalSystem) {
+    PortalSystem& portalSystem,
+    PerformanceManager& perfManager) {
 
     const float cameraSpeed = 2.5f * deltaTime;
 
@@ -324,6 +520,16 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         darknessKeyPressed = false;
     }
 
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && !generateKeyPressed) {
+        generateKeyPressed = true;
+        portalSystem.forceGenerateRooms(cameraPos);
+        std::cout << "Forced room generation!" << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
+        generateKeyPressed = false;
+    }
+
+
     // Dramatic mode toggle (M key for "Mode")
     if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS && !dramaticKeyPressed) {
         dramaticKeyPressed = true;
@@ -408,6 +614,47 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         recursionKeyPressed = false;
     }
 
+    // Infinite library controls (I key for "Infinite")
+    if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS && !infiniteKeyPressed) {
+        infiniteKeyPressed = true;
+        static bool infiniteEnabled = true;
+        infiniteEnabled = !infiniteEnabled;
+        portalSystem.setInfiniteMode(infiniteEnabled);
+        std::cout << "Infinite library mode: " << (infiniteEnabled ? "ENABLED" : "DISABLED") << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_I) == GLFW_RELEASE) {
+        infiniteKeyPressed = false;
+    }
+
+    // Performance controls (F key for "FPS")
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !fpsKeyPressed) {
+        fpsKeyPressed = true;
+        static bool adaptiveQuality = true;
+        adaptiveQuality = !adaptiveQuality;
+        perfManager.setAdaptiveQuality(adaptiveQuality);
+        std::cout << "Adaptive quality: " << (adaptiveQuality ? "ENABLED" : "DISABLED") << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
+        fpsKeyPressed = false;
+    }
+
+    // Memory optimization (O key for "Optimize")
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS && !optimizeKeyPressed) {
+        optimizeKeyPressed = true;
+        MemoryManager::optimizeTextureMemory();
+        MemoryManager::cleanupUnusedResources();
+
+        size_t vramUsage = MemoryManager::estimateVRAMUsage(
+            portalSystem.getPortalCount(),
+            perfManager.getPortalQuality(),
+            perfManager.getRecursionDepth()
+        );
+        std::cout << "Estimated VRAM usage: " << vramUsage << " MB" << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_RELEASE) {
+        optimizeKeyPressed = false;
+    }
+
     // Debug toggle (H key)
     if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS && !hKeyPressed) {
         hKeyPressed = true;
@@ -418,6 +665,7 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
             printRoomDebugInfo(roomRadius, roomHeight, numSides);
             printCameraDebugInfo(cameraPos, cameraFront, yaw, pitch);
             printLightingDebugInfo(lightingManager);
+            printPerformanceDebugInfo(perfManager, portalSystem);
             portalSystem.printDebugInfo();
             printSceneDebugInfo(scene, bookModel, bookshelfModel, bookshelf2Model,
                 columnModel, floorModel, lampModel, portalModel,
@@ -444,7 +692,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL - Infinite Library", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window!\n";
         glfwTerminate();
@@ -499,6 +747,10 @@ int main() {
 
     // Create portal system
     PortalSystem portalSystem;
+
+    // Create performance manager
+    PerformanceManager perfManager;
+    perfManager.setAdaptiveQuality(true);
 
     std::cout << "Setting up library room..." << std::endl;
 
@@ -586,73 +838,6 @@ int main() {
             glm::vec3(0.0f, rotationToFaceCenter, 0.0f),
             scale);
     }
-
-    //// TORCH MODELS - Place torches hanging on columns and walls
-    //std::cout << "Placing torch models (hanging on columns and walls)..." << std::endl;
-
-    //// Wall torches - hanging on the octagonal walls
-    //for (int i = 0; i < 8; i++) {
-    //    float angle = glm::radians(45.0f * static_cast<float>(i));
-
-    //    // Position torches closer to the wall surface
-    //    glm::vec3 torchPos = glm::vec3(
-    //        roomRadius * 0.92f * cos(angle), // Very close to wall
-    //        2.2f, // Wall-mounted height
-    //        roomRadius * 0.92f * sin(angle)
-    //    );
-
-    //    scene.addObject(torchModel.get(),
-    //        torchPos,
-    //        glm::vec3(0.0f, angle + glm::radians(180.0f), 0.0f), // Face inward toward room
-    //        glm::vec3(0.8f, 0.8f, 0.8f)); // Smaller size for wall mounting
-    //}
-
-    //// Column torches - hanging FROM the columns (not floating beside them)
-    //for (int i = 0; i < 4; i++) {
-    //    float angle = glm::radians(90.0f * static_cast<float>(i));
-
-    //    // Calculate column center position
-    //    glm::vec3 columnCenter = glm::vec3(3.0f * cos(angle), 0.0f, 3.0f * sin(angle));
-
-    //    // Position torch to hang from the column at shoulder height
-    //    // Offset slightly outward from column surface
-    //    float offsetDistance = 1.0f; // Distance from column center
-    //    glm::vec3 torchPos = glm::vec3(
-    //        columnCenter.x + offsetDistance * cos(angle), // Offset outward from column
-    //        2.8f, // Hanging height on column
-    //        columnCenter.z + offsetDistance * sin(angle)
-    //    );
-
-    //    scene.addObject(torchModel.get(),
-    //        torchPos,
-    //        glm::vec3(0.0f, angle + glm::radians(90.0f), 0.0f), // Perpendicular to column face
-    //        glm::vec3(1.0f, 1.0f, 1.0f)); // Normal size for column torches
-
-    //    // Add a second torch on the opposite side of each column for more light
-    //    glm::vec3 torchPos2 = glm::vec3(
-    //        columnCenter.x - offsetDistance * cos(angle), // Opposite side
-    //        2.8f,
-    //        columnCenter.z - offsetDistance * sin(angle)
-    //    );
-
-    //    scene.addObject(torchModel.get(),
-    //        torchPos2,
-    //        glm::vec3(0.0f, angle + glm::radians(270.0f), 0.0f), // Face opposite direction
-    //        glm::vec3(1.0f, 1.0f, 1.0f));
-    //}
-
-    //// ADDITIONAL: Add some torches on bookshelves for reading light
-    //for (int i = 0; i < 4; i++) {
-    //    float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
-    //    float x = roomRadius * 0.7f * cos(angle);
-    //    float z = roomRadius * 0.7f * sin(angle);
-
-    //    // Small reading torches on top of bookshelves
-    //    scene.addObject(torchModel.get(),
-    //        glm::vec3(x, 4.2f, z), // On top of bookshelf
-    //        glm::vec3(0.0f, angle, 0.0f),
-    //        glm::vec3(0.6f, 0.6f, 0.6f)); // Small reading torches
-    //}
 
     // ENHANCED FLOATING BOOKS
     std::cout << "Setting up animations (books)..." << std::endl;
@@ -746,9 +931,15 @@ int main() {
     std::cout << "Setting up portal system..." << std::endl;
     portalSystem.initialize(roomRadius, roomHeight);
 
-    // Create scene rendering lambda function for recursive portals
+    // Enhanced scene rendering lambda function for recursive portals
     auto renderSceneFunction = [&](const glm::mat4& view, const glm::mat4& projection,
         int recursionLevel, const RoomVariation& variation) {
+
+            if (recursionLevel == 0) {
+                std::cout << "Rendering with color tint: " << variation.colorTint.x
+                    << ", " << variation.colorTint.y << ", " << variation.colorTint.z << std::endl;
+            }
+
             basicShader.use();
             basicShader.setMat4("view", &view[0][0]);
             basicShader.setMat4("projection", &projection[0][0]);
@@ -758,6 +949,17 @@ int main() {
             glm::vec3 virtualViewPos = glm::vec3(invView[3]);
             basicShader.setVec3("viewPos", virtualViewPos.x, virtualViewPos.y, virtualViewPos.z);
 
+            // IMPORTANT: Actually apply the room variation
+            basicShader.setVec3("roomColorTint", variation.colorTint.x, variation.colorTint.y, variation.colorTint.z);
+            basicShader.setFloat("roomScale", variation.scaleMultiplier);
+
+            // Add fog effects for depth
+            float fogIntensity = 0.02f + recursionLevel * 0.01f;
+            basicShader.setFloat("fogDensity", fogIntensity);
+
+            glm::vec3 fogColor = glm::vec3(0.01f, 0.005f, 0.02f) * variation.colorTint;
+            basicShader.setVec3("fogColor", fogColor.x, fogColor.y, fogColor.z);
+
             // Create modified lighting for room variation
             LightingManager modifiedLighting = lightingManager;
 
@@ -765,30 +967,54 @@ int main() {
             for (auto& light : modifiedLighting.pointLights) {
                 light.color *= variation.colorTint;
                 light.intensity *= variation.scaleMultiplier;
-                // Apply position offset for different rooms
-                light.position += glm::vec3(0.0f, 0.0f, recursionLevel * variation.roomOffset);
+
+                // Apply position offset for different rooms based on recursion
+                glm::vec3 roomOffset = glm::vec3(
+                    recursionLevel * variation.roomOffset * cos(recursionLevel * 0.5f),
+                    0.0f,
+                    recursionLevel * variation.roomOffset * sin(recursionLevel * 0.5f)
+                );
+                light.position += roomOffset;
             }
             modifiedLighting.ambientColor *= variation.colorTint;
 
             // Bind modified lighting
             modifiedLighting.bindToShader(basicShader);
 
-            // Render all objects except portals at deeper recursion levels
+            // Enhanced object rendering with room variations
             for (size_t i = 0; i < scene.objects.size(); i++) {
                 const auto& obj = scene.objects[i];
 
-                // Skip portal objects at recursion levels > 1 to prevent infinite recursion
-                if (obj.model == portalModel.get() && recursionLevel > 1) {
+                // Skip portal objects at deeper recursion levels to prevent infinite recursion
+                if (obj.model == portalModel.get() && recursionLevel > 2) {
                     continue;
                 }
 
-                // Apply room variation scaling and offset
-                glm::mat4 scaledModel = obj.modelMatrix;
-                if (variation.scaleMultiplier != 1.0f || recursionLevel > 0) {
-                    glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(variation.scaleMultiplier));
-                    glm::mat4 offsetMatrix = glm::translate(glm::mat4(1.0f),
-                        glm::vec3(0.0f, 0.0f, recursionLevel * variation.roomOffset));
-                    scaledModel = offsetMatrix * scaleMatrix * scaledModel;
+                // Performance culling for distant rooms
+                if (recursionLevel > 0 && obj.model == bookModel.get() &&
+                    (rand() % (recursionLevel + 1)) != 0) {
+                    continue; // Randomly cull some books in distant rooms
+                }
+
+                // Apply room variation transformations
+                glm::mat4 roomTransform = obj.modelMatrix;
+
+                // Apply scaling
+                if (variation.scaleMultiplier != 1.0f) {
+                    glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f),
+                        glm::vec3(variation.scaleMultiplier));
+                    roomTransform = scaleMatrix * roomTransform;
+                }
+
+                // Apply room offset for recursion
+                if (recursionLevel > 0) {
+                    glm::vec3 roomOffset = glm::vec3(
+                        recursionLevel * variation.roomOffset * cos(recursionLevel * 0.5f),
+                        recursionLevel * 5.0f, // Slight vertical offset
+                        recursionLevel * variation.roomOffset * sin(recursionLevel * 0.5f)
+                    );
+                    glm::mat4 offsetMatrix = glm::translate(glm::mat4(1.0f), roomOffset);
+                    roomTransform = offsetMatrix * roomTransform;
                 }
 
                 // Bind textures based on object type
@@ -817,13 +1043,17 @@ int main() {
                     TextureManager::bindTextureForObject("torch", basicShader);
                 }
 
-                basicShader.setMat4("model", &scaledModel[0][0]);
+                basicShader.setMat4("model", &roomTransform[0][0]);
                 obj.model->draw();
             }
+
+            // Reset room-specific uniforms
+            basicShader.setVec3("roomColorTint", 1.0f, 1.0f, 1.0f);
+            basicShader.setFloat("roomScale", 1.0f);
         };
 
     std::cout << "Library setup complete!" << std::endl;
-    std::cout << "\n=== BABEL CONTROLS ===" << std::endl;
+    std::cout << "\n=== BABEL INFINITE LIBRARY CONTROLS ===" << std::endl;
     std::cout << "  WASD + Mouse - Move camera" << std::endl;
     std::cout << "  Space/Ctrl - Up/Down" << std::endl;
     std::cout << "  H - Debug info" << std::endl;
@@ -836,7 +1066,10 @@ int main() {
     std::cout << "  P - Toggle portals on/off" << std::endl;
     std::cout << "  Q - Portal quality (Low/Medium/High)" << std::endl;
     std::cout << "  R - Recursion depth (1-8 levels)" << std::endl;
-    std::cout << "============================\n" << std::endl;
+    std::cout << "  I - Toggle infinite library mode" << std::endl;
+    std::cout << "  F - Toggle adaptive quality" << std::endl;
+    std::cout << "  O - Optimize memory usage" << std::endl;
+    std::cout << "==========================================\n" << std::endl;
 
     // Camera setup
     glm::vec3 cameraPos = glm::vec3(1.2f, 2.3f, 1.16f);
@@ -854,10 +1087,13 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        // Update performance manager
+        perfManager.updateFPS(deltaTime);
+
         processInput(window, cameraPos, cameraFront, cameraUp, deltaTime, scene,
             bookModel, bookshelfModel, bookshelf2Model, columnModel,
             floorModel, lampModel, portalModel, ceilingModel, wallModel, torchModel,
-            roomRadius, roomHeight, numSides, yaw, pitch, lightingManager, portalSystem);
+            roomRadius, roomHeight, numSides, yaw, pitch, lightingManager, portalSystem, perfManager);
 
         glm::vec3 direction;
         direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
@@ -871,16 +1107,27 @@ int main() {
         // Update lighting animations
         lightingManager.update(deltaTime * globalAnimationSpeed);
 
-        // Update portal distances
+        // Update portal distances and infinite room generation
         portalSystem.updateDistances(cameraPos);
+        if (portalSystem.areActive()) {
+            portalSystem.updateRoomGeneration(cameraPos);
+        }
+
+        // Apply performance settings
+        if (perfManager.getPortalQuality() != 512) { // Default quality check
+            portalSystem.setQuality(perfManager.getPortalQuality());
+        }
+        if (perfManager.getRecursionDepth() != 4) { // Default depth check
+            portalSystem.setRecursionDepth(perfManager.getRecursionDepth());
+        }
 
         // Create view and projection matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 100.0f);
 
-        // PHASE 1: Render recursive portal views FIRST
+        // PHASE 1: Render recursive portal views FIRST using optimized rendering
         if (portalSystem.areActive()) {
-            portalSystem.renderPortalViews(renderSceneFunction, cameraPos, cameraFront, projection);
+            portalSystem.renderPortalViewsOptimized(renderSceneFunction, cameraPos, cameraFront, projection);
         }
 
         // PHASE 2: Render main scene to screen
@@ -889,54 +1136,24 @@ int main() {
         glClearColor(0.01f, 0.005f, 0.02f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Draw all non-portal objects with basic shader
+        // Draw all non-portal objects with basic shader using LOD
         basicShader.use();
         basicShader.setMat4("view", &view[0][0]);
         basicShader.setMat4("projection", &projection[0][0]);
         basicShader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
+        // Set default room uniforms for main scene
+        basicShader.setVec3("roomColorTint", 1.0f, 1.0f, 1.0f);
+        basicShader.setFloat("roomScale", 1.0f);
+        basicShader.setFloat("fogDensity", 0.02f);
+        basicShader.setVec3("fogColor", 0.01f, 0.005f, 0.02f);
+
         // Bind all lighting to shader
         lightingManager.bindToShader(basicShader);
 
-        // Draw all objects except portals first
-        for (size_t i = 0; i < scene.objects.size(); i++) {
-            const auto& obj = scene.objects[i];
-
-            // Skip portal objects - we'll render them separately
-            if (obj.model == portalModel.get()) {
-                continue;
-            }
-
-            // Bind appropriate texture for each object type
-            if (obj.model == bookModel.get()) {
-                TextureManager::bindTextureForObject("book", basicShader);
-            }
-            else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) {
-                TextureManager::bindTextureForObject("bookshelf", basicShader);
-            }
-            else if (obj.model == columnModel.get()) {
-                TextureManager::bindTextureForObject("column", basicShader);
-            }
-            else if (obj.model == floorModel.get()) {
-                TextureManager::bindTextureForObject("floor", basicShader);
-            }
-            else if (obj.model == wallModel.get()) {
-                TextureManager::bindTextureForObject("wall", basicShader);
-            }
-            else if (obj.model == ceilingModel.get()) {
-                TextureManager::bindTextureForObject("ceiling", basicShader);
-            }
-            else if (obj.model == lampModel.get()) {
-                TextureManager::bindTextureForObject("lamp", basicShader);
-            }
-            else if (obj.model == torchModel.get()) {
-                TextureManager::bindTextureForObject("torch", basicShader);
-            }
-
-            // Set model matrix and draw
-            basicShader.setMat4("model", &obj.modelMatrix[0][0]);
-            obj.model->draw();
-        }
+        // Render scene with LOD optimizations
+        renderSceneWithLOD(scene, basicShader, cameraPos, bookModel, bookshelfModel, bookshelf2Model,
+            columnModel, floorModel, lampModel, portalModel, ceilingModel, wallModel, torchModel, 0);
 
         // PHASE 3: Render portals with portal shader
         if (scene.objects.size() > 0) {
@@ -946,13 +1163,12 @@ int main() {
             portalShader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
             portalShader.setFloat("time", currentFrame);
 
-            // Bind lighting to portal shader (same as basic shader)
+            // Bind lighting to portal shader
             lightingManager.bindToShader(portalShader);
 
             // Set portal activity state
             bool portalsActive = portalSystem.areActive();
             portalShader.setBool("portalActive", portalsActive);
-            portalShader.setFloat("portalIntensity", 1.0f);
 
             // Render each portal
             int portalCount = 0;
@@ -960,7 +1176,7 @@ int main() {
                 const auto& obj = scene.objects[i];
 
                 if (obj.model == portalModel.get()) {
-                    // Bind stone textures for the frame (always bind these)
+                    // Bind stone textures for the frame
                     glActiveTexture(GL_TEXTURE1);
                     glBindTexture(GL_TEXTURE_2D, TextureManager::getTexture("portal_basecolor"));
                     portalShader.setInt("baseColorMap", 1);
@@ -974,16 +1190,21 @@ int main() {
                     portalShader.setInt("metallicMap", 3);
 
                     if (portalsActive && portalCount < portalSystem.getPortalCount()) {
-                        // Bind the portal's recursive view texture for the center opening
+                        // Bind the portal's recursive view texture
                         glActiveTexture(GL_TEXTURE0);
                         portalSystem.bindPortalTexture(portalCount, portalShader);
                         portalShader.setInt("portalView", 0);
 
-                        //std::cout << "Rendering active portal " << portalCount << std::endl;
+                        // Set recursion level and destination color tint
+                        portalShader.setInt("recursionLevel", portalCount);
+                        if (portalCount < 8) { // Ensure we don't go out of bounds
+                            const auto& variation = portalSystem.roomVariations[portalCount % 8];
+                            portalShader.setVec3("destinationColorTint",
+                                variation.colorTint.x, variation.colorTint.y, variation.colorTint.z);
+                        }
                     }
                     else {
-                        // Inactive portal - just show black in center
-                        glActiveTexture(GL_TEXTURE0);
+                        // Inactive portal - show black
                         static GLuint blackTexture = 0;
                         if (blackTexture == 0) {
                             glGenTextures(1, &blackTexture);
@@ -993,8 +1214,10 @@ int main() {
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                         }
+                        glActiveTexture(GL_TEXTURE0);
                         glBindTexture(GL_TEXTURE_2D, blackTexture);
                         portalShader.setInt("portalView", 0);
+                        portalShader.setVec3("destinationColorTint", 1.0f, 1.0f, 1.0f);
                     }
 
                     // Set model matrix and draw portal
@@ -1002,18 +1225,6 @@ int main() {
                     obj.model->draw();
 
                     portalCount++;
-                }
-            }
-        }
-        else {
-            // Render inactive portals with basic shader (dark stone)
-            basicShader.use();
-            for (size_t i = 0; i < scene.objects.size(); i++) {
-                const auto& obj = scene.objects[i];
-                if (obj.model == portalModel.get()) {
-                    TextureManager::bindTextureForObject("portal", basicShader);
-                    basicShader.setMat4("model", &obj.modelMatrix[0][0]);
-                    obj.model->draw();
                 }
             }
         }

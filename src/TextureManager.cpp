@@ -48,8 +48,8 @@ void TextureManager::loadAllTextures() {
     // Load stone textures for walls (using rock_tile_floor)
     loadTexture("wall_basecolor", "assets/textures/stone-textures/rock_tile_floor_diff_1k.jpg");
 
-    // Load stone textures for portals (using gray_rocks)
-    loadTexture("portal_basecolor", "assets/textures/stone-textures/gray_rocks_diff_1k.jpg");
+    // Load stone textures for doorframes (using gray_rocks)
+    loadTexture("doorframe_basecolor", "assets/textures/stone-textures/gray_rocks_diff_1k.jpg");
 
     // Load wood textures for bookshelves
     loadTexture("wood_basecolor", "assets/textures/wood-textures/oak_veneer_01_diff_1k.jpg");
@@ -133,10 +133,10 @@ void TextureManager::bindTextureForObject(const std::string& objectType, Shader&
         glBindTexture(GL_TEXTURE_2D, getTexture("column_metallic")); // Reuse
         shader.setInt("metallicMap", 2);
     }
-    else if (objectType == "portal") {
-        // Use gray rocks texture for portals
+    else if (objectType == "doorframe") {
+        // Use gray rocks texture for doorframes
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, getTexture("portal_basecolor"));
+        glBindTexture(GL_TEXTURE_2D, getTexture("doorframe_basecolor"));
         shader.setInt("baseColorMap", 0);
 
         glActiveTexture(GL_TEXTURE1);

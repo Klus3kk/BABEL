@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\debug.cpp" />
     <ClCompile Include="src\LightingManager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\model.cpp" />
@@ -35,6 +36,7 @@
     <None Include="shaders\portal.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\debug.hpp" />
     <ClInclude Include="include\LightingManager.hpp" />
     <ClInclude Include="include\model.hpp" />
     <ClInclude Include="include\portals.hpp" />

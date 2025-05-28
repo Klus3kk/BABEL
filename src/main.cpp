@@ -47,11 +47,15 @@ static bool portalTogglePressed = false;
 static bool portalQualityPressed = false;
 static bool recursionKeyPressed = false;
 
+// Recursive portal variables
+static int maxRecursionDepth = 3;
+static bool recursivePortalsEnabled = true;
+
 // Function declarations
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 
-void renderNormalScene(const Scene& scene, Shader& basicShader, LightingManager& lightingManager,
+void renderScene(const Scene& scene, Shader& shader, LightingManager& lightingManager,
     const glm::mat4& view, const glm::mat4& projection, const glm::vec3& cameraPos,
     const std::unique_ptr<Model>& bookModel,
     const std::unique_ptr<Model>& bookshelfModel,
@@ -59,69 +63,29 @@ void renderNormalScene(const Scene& scene, Shader& basicShader, LightingManager&
     const std::unique_ptr<Model>& columnModel,
     const std::unique_ptr<Model>& floorModel,
     const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
-    const std::unique_ptr<Model>& ceilingModel,
-    const std::unique_ptr<Model>& wallModel,
-    const std::unique_ptr<Model>& torchModel);
-
-void renderWithEnhancedPortals(const Scene& scene, Shader& basicShader, Shader& portalShader,
-    LightingManager& lightingManager, PortalSystem& portalSystem,
-    const glm::mat4& view, const glm::mat4& projection, const glm::vec3& cameraPos,
-    const std::unique_ptr<Model>& bookModel,
-    const std::unique_ptr<Model>& bookshelfModel,
-    const std::unique_ptr<Model>& bookshelf2Model,
-    const std::unique_ptr<Model>& columnModel,
-    const std::unique_ptr<Model>& floorModel,
-    const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
-    const std::unique_ptr<Model>& ceilingModel,
-    const std::unique_ptr<Model>& wallModel,
-    const std::unique_ptr<Model>& torchModel);
-
-void renderPortalGeometryForStencil(PortalSystem& portalSystem, Shader& portalShader,
-    LightingManager& lightingManager,
-    const glm::mat4& view, const glm::mat4& projection,
-    const glm::vec3& cameraPos,
-    const std::unique_ptr<Model>& portalModel,
-    const Scene& scene);
-
-void printSceneDebugInfo(const Scene& scene,
-    const std::unique_ptr<Model>& bookModel,
-    const std::unique_ptr<Model>& bookshelfModel,
-    const std::unique_ptr<Model>& bookshelf2Model,
-    const std::unique_ptr<Model>& columnModel,
-    const std::unique_ptr<Model>& floorModel,
-    const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
-    const std::unique_ptr<Model>& ceilingModel,
-    const std::unique_ptr<Model>& wallModel,
-    const std::unique_ptr<Model>& torchModel);
-
-void printCameraDebugInfo(const glm::vec3& cameraPos, const glm::vec3& cameraFront,
-    float yaw, float pitch);
-
-void printRoomDebugInfo(float roomRadius, float roomHeight, int numSides);
-
-void printLightingDebugInfo(const LightingManager& lightingManager);
-
-void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFront, glm::vec3& cameraUp, float deltaTime,
-    const Scene& scene,
-    const std::unique_ptr<Model>& bookModel,
-    const std::unique_ptr<Model>& bookshelfModel,
-    const std::unique_ptr<Model>& bookshelf2Model,
-    const std::unique_ptr<Model>& columnModel,
-    const std::unique_ptr<Model>& floorModel,
-    const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
+    const std::unique_ptr<Model>& doorFrameModel,
     const std::unique_ptr<Model>& ceilingModel,
     const std::unique_ptr<Model>& wallModel,
     const std::unique_ptr<Model>& torchModel,
-    float roomRadius, float roomHeight, int numSides,
-    float yaw, float pitch,
-    LightingManager& lightingManager,
-    PortalSystem& portalSystem);
+    bool skipDoorFrames = false);
 
-// ----------------------------------------------------------------
+void renderRecursivePortals(const Scene& scene, Shader& basicShader, LightingManager& lightingManager,
+    const glm::mat4& view, const glm::mat4& projection, const glm::vec3& cameraPos,
+    const std::unique_ptr<Model>& bookModel,
+    const std::unique_ptr<Model>& bookshelfModel,
+    const std::unique_ptr<Model>& bookshelf2Model,
+    const std::unique_ptr<Model>& columnModel,
+    const std::unique_ptr<Model>& floorModel,
+    const std::unique_ptr<Model>& lampModel,
+    const std::unique_ptr<Model>& doorFrameModel,
+    const std::unique_ptr<Model>& ceilingModel,
+    const std::unique_ptr<Model>& wallModel,
+    const std::unique_ptr<Model>& torchModel,
+    int recursionLevel = 0);
+
+glm::mat4 calculatePortalView(const glm::vec3& doorFramePos, const glm::vec3& doorFrameNormal,
+    const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
+    int recursionLevel);
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -155,7 +119,7 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
         pitch = -89.0f;
 }
 
-void renderNormalScene(const Scene& scene, Shader& basicShader, LightingManager& lightingManager,
+void renderScene(const Scene& scene, Shader& shader, LightingManager& lightingManager,
     const glm::mat4& view, const glm::mat4& projection, const glm::vec3& cameraPos,
     const std::unique_ptr<Model>& bookModel,
     const std::unique_ptr<Model>& bookshelfModel,
@@ -163,57 +127,89 @@ void renderNormalScene(const Scene& scene, Shader& basicShader, LightingManager&
     const std::unique_ptr<Model>& columnModel,
     const std::unique_ptr<Model>& floorModel,
     const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
+    const std::unique_ptr<Model>& doorFrameModel,
     const std::unique_ptr<Model>& ceilingModel,
     const std::unique_ptr<Model>& wallModel,
-    const std::unique_ptr<Model>& torchModel) {
+    const std::unique_ptr<Model>& torchModel,
+    bool skipDoorFrames) {
 
-    basicShader.use();
-    basicShader.setMat4("view", &view[0][0]);
-    basicShader.setMat4("projection", &projection[0][0]);
-    basicShader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-    lightingManager.bindToShader(basicShader);
+    shader.use();
+    shader.setMat4("view", &view[0][0]);
+    shader.setMat4("projection", &projection[0][0]);
+    shader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+    lightingManager.bindToShader(shader);
 
-    // Draw all objects
     for (size_t i = 0; i < scene.objects.size(); i++) {
         const auto& obj = scene.objects[i];
 
-        // Bind appropriate texture for each object type
-        if (obj.model == bookModel.get()) {
-            TextureManager::bindTextureForObject("book", basicShader);
-        }
-        else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) {
-            TextureManager::bindTextureForObject("bookshelf", basicShader);
-        }
-        else if (obj.model == columnModel.get()) {
-            TextureManager::bindTextureForObject("column", basicShader);
-        }
-        else if (obj.model == floorModel.get()) {
-            TextureManager::bindTextureForObject("floor", basicShader);
-        }
-        else if (obj.model == wallModel.get()) {
-            TextureManager::bindTextureForObject("wall", basicShader);
-        }
-        else if (obj.model == ceilingModel.get()) {
-            TextureManager::bindTextureForObject("ceiling", basicShader);
-        }
-        else if (obj.model == lampModel.get()) {
-            TextureManager::bindTextureForObject("lamp", basicShader);
-        }
-        else if (obj.model == torchModel.get()) {
-            TextureManager::bindTextureForObject("torch", basicShader);
-        }
-        else if (obj.model == portalModel.get()) {
-            TextureManager::bindTextureForObject("portal", basicShader);
+        // Skip door frames if requested
+        if (skipDoorFrames && obj.model == doorFrameModel.get()) {
+            continue;
         }
 
-        basicShader.setMat4("model", &obj.modelMatrix[0][0]);
+        // Bind appropriate texture for each object type
+        if (obj.model == bookModel.get()) {
+            TextureManager::bindTextureForObject("book", shader);
+        }
+        else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) {
+            TextureManager::bindTextureForObject("bookshelf", shader);
+        }
+        else if (obj.model == columnModel.get()) {
+            TextureManager::bindTextureForObject("column", shader);
+        }
+        else if (obj.model == floorModel.get()) {
+            TextureManager::bindTextureForObject("floor", shader);
+        }
+        else if (obj.model == wallModel.get()) {
+            TextureManager::bindTextureForObject("wall", shader);
+        }
+        else if (obj.model == ceilingModel.get()) {
+            TextureManager::bindTextureForObject("ceiling", shader);
+        }
+        else if (obj.model == lampModel.get()) {
+            TextureManager::bindTextureForObject("lamp", shader);
+        }
+        else if (obj.model == torchModel.get()) {
+            TextureManager::bindTextureForObject("torch", shader);
+        }
+        else if (obj.model == doorFrameModel.get()) {
+            TextureManager::bindTextureForObject("portal", shader); // Use portal texture for door frames
+        }
+
+        shader.setMat4("model", &obj.modelMatrix[0][0]);
         obj.model->draw();
     }
 }
 
-void renderWithEnhancedPortals(const Scene& scene, Shader& basicShader, Shader& portalShader,
-    LightingManager& lightingManager, PortalSystem& portalSystem,
+glm::mat4 calculatePortalView(const glm::vec3& doorFramePos, const glm::vec3& doorFrameNormal,
+    const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
+    int recursionLevel) {
+
+    // Calculate the virtual camera position through the portal
+    // This implements the portal transformation from the tutorial
+
+    // Distance from camera to portal
+    glm::vec3 toDoorFrame = doorFramePos - cameraPos;
+    float distanceToPortal = glm::length(toDoorFrame);
+
+    // Calculate the position relative to the portal
+    glm::vec3 relativePos = cameraPos - doorFramePos;
+
+    // Transform through the portal (simplified - move to next room)
+    float roomOffset = 30.0f + (recursionLevel * 25.0f); // Rooms get further apart
+    glm::vec3 virtualCameraPos = doorFramePos + doorFrameNormal * roomOffset + relativePos;
+
+    // Calculate virtual camera target
+    glm::vec3 virtualTarget = virtualCameraPos + cameraFront;
+
+    // Apply some variation based on recursion level for visual interest
+    float variation = recursionLevel * 0.1f;
+    virtualCameraPos += glm::vec3(sin(variation) * 2.0f, 0.0f, cos(variation) * 2.0f);
+
+    return glm::lookAt(virtualCameraPos, virtualTarget, cameraUp);
+}
+
+void renderRecursivePortals(const Scene& scene, Shader& basicShader, LightingManager& lightingManager,
     const glm::mat4& view, const glm::mat4& projection, const glm::vec3& cameraPos,
     const std::unique_ptr<Model>& bookModel,
     const std::unique_ptr<Model>& bookshelfModel,
@@ -221,125 +217,148 @@ void renderWithEnhancedPortals(const Scene& scene, Shader& basicShader, Shader& 
     const std::unique_ptr<Model>& columnModel,
     const std::unique_ptr<Model>& floorModel,
     const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
+    const std::unique_ptr<Model>& doorFrameModel,
     const std::unique_ptr<Model>& ceilingModel,
     const std::unique_ptr<Model>& wallModel,
-    const std::unique_ptr<Model>& torchModel) {
+    const std::unique_ptr<Model>& torchModel,
+    int recursionLevel) {
 
-    // Create render scene function for portal system
-    auto renderSceneForPortals = [&](const glm::mat4& viewMat, const glm::mat4& projMat) {
-        basicShader.use();
-        basicShader.setMat4("view", &viewMat[0][0]);
-        basicShader.setMat4("projection", &projMat[0][0]);
+    // Base case: maximum recursion reached
+    if (recursionLevel >= maxRecursionDepth) {
+        // Render scene normally including door frames (but they won't show portals)
+        renderScene(scene, basicShader, lightingManager, view, projection, cameraPos,
+            bookModel, bookshelfModel, bookshelf2Model, columnModel,
+            floorModel, lampModel, doorFrameModel, ceilingModel, wallModel, torchModel, false);
+        return;
+    }
 
-        // Extract camera position from view matrix
-        glm::mat4 invView = glm::inverse(viewMat);
-        glm::vec3 virtualViewPos = glm::vec3(invView[3]);
-        basicShader.setVec3("viewPos", virtualViewPos.x, virtualViewPos.y, virtualViewPos.z);
+    // Step 1: Render the entire scene normally FIRST (including door frames)
+    renderScene(scene, basicShader, lightingManager, view, projection, cameraPos,
+        bookModel, bookshelfModel, bookshelf2Model, columnModel,
+        floorModel, lampModel, doorFrameModel, ceilingModel, wallModel, torchModel, false);
 
-        // Bind lighting
-        lightingManager.bindToShader(basicShader);
+    // Step 2: Now create portal effects for each door frame opening
+    std::vector<glm::vec3> doorFramePositions;
+    std::vector<glm::vec3> doorFrameNormals;
 
-        // Render all non-portal objects
-        for (size_t i = 0; i < scene.objects.size(); i++) {
-            const auto& obj = scene.objects[i];
-
-            // Skip portal objects - they're handled separately
-            if (obj.model == portalModel.get()) {
-                continue;
-            }
-
-            // Bind appropriate textures
-            if (obj.model == bookModel.get()) {
-                TextureManager::bindTextureForObject("book", basicShader);
-            }
-            else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) {
-                TextureManager::bindTextureForObject("bookshelf", basicShader);
-            }
-            else if (obj.model == columnModel.get()) {
-                TextureManager::bindTextureForObject("column", basicShader);
-            }
-            else if (obj.model == floorModel.get()) {
-                TextureManager::bindTextureForObject("floor", basicShader);
-            }
-            else if (obj.model == wallModel.get()) {
-                TextureManager::bindTextureForObject("wall", basicShader);
-            }
-            else if (obj.model == ceilingModel.get()) {
-                TextureManager::bindTextureForObject("ceiling", basicShader);
-            }
-            else if (obj.model == lampModel.get()) {
-                TextureManager::bindTextureForObject("lamp", basicShader);
-            }
-            else if (obj.model == torchModel.get()) {
-                TextureManager::bindTextureForObject("torch", basicShader);
-            }
-
-            basicShader.setMat4("model", &obj.modelMatrix[0][0]);
-            obj.model->draw();
-        }
-        };
-
-	// Render recursive portal views using stencil testing
-    portalSystem.drawRecursivePortals(renderSceneForPortals, view, projection);
-
-    // Render portal geometry for stencil operations (stencil test)
-    renderPortalGeometryForStencil(portalSystem, portalShader, lightingManager,
-        view, projection, cameraPos, portalModel, scene);
-
-    // Cleanup and portal frame rendering
-    glDisable(GL_STENCIL_TEST);
-
-    // Render portal frames on top 
-    portalShader.use();
-    portalShader.setMat4("view", &view[0][0]);
-    portalShader.setMat4("projection", &projection[0][0]);
-    portalShader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-    portalShader.setBool("portalActive", true);
-    lightingManager.bindToShader(portalShader);
-
-    // Render archways
+    // Collect door frame positions and normals
     for (size_t i = 0; i < scene.objects.size(); i++) {
         const auto& obj = scene.objects[i];
-        if (obj.model == portalModel.get()) {
-            TextureManager::bindTextureForObject("portal", portalShader);
-            portalShader.setMat4("model", &obj.modelMatrix[0][0]);
-            obj.model->draw();
+        if (obj.model == doorFrameModel.get()) {
+            doorFramePositions.push_back(obj.position);
+
+            // Calculate door frame normal based on rotation
+            glm::vec3 normal = glm::vec3(0, 0, 1); // Default forward
+            glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), obj.rotation.y, glm::vec3(0, 1, 0));
+            normal = glm::vec3(rotationMatrix * glm::vec4(normal, 0.0f));
+            doorFrameNormals.push_back(normal);
         }
     }
-}
 
-void renderPortalGeometryForStencil(PortalSystem& portalSystem, Shader& portalShader,
-    LightingManager& lightingManager,
-    const glm::mat4& view, const glm::mat4& projection,
-    const glm::vec3& cameraPos,
-    const std::unique_ptr<Model>& portalModel,
-    const Scene& scene) {
+    // Extract camera direction from view matrix
+    glm::mat4 invView = glm::inverse(view);
+    glm::vec3 cameraFront = -glm::vec3(invView[2]);
+    glm::vec3 cameraUp = glm::vec3(invView[1]);
 
-    // This function handles the portal geometry rendering for stencil operations
-    portalShader.use();
-    portalShader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
-    lightingManager.bindToShader(portalShader);
-    TextureManager::bindTextureForObject("portal", portalShader);
+    // Step 3: Enable stencil testing for portal rendering
+    glEnable(GL_STENCIL_TEST);
 
-    // Draw each portal's geometry for stencil operations
-    for (size_t i = 0; i < portalSystem.getPortalCount(); i++) {
-        // Find the corresponding portal object in scene
-        size_t portalObjectIndex = 0;
-        for (size_t j = 0; j < scene.objects.size(); j++) {
-            if (scene.objects[j].model == portalModel.get()) {
-                if (portalObjectIndex == i) {
-                    // Found the matching portal object
-                    portalShader.setMat4("view", &view[0][0]);
-                    portalShader.setMat4("projection", &projection[0][0]);
-                    portalShader.setMat4("model", &scene.objects[j].modelMatrix[0][0]);
-                    portalModel->draw();
-                    break;
-                }
-                portalObjectIndex++;
-            }
+    // Step 4: For each door frame, create a portal effect in its opening
+    for (size_t portalIndex = 0; portalIndex < doorFramePositions.size(); portalIndex++) {
+        const glm::vec3& doorFramePos = doorFramePositions[portalIndex];
+        const glm::vec3& doorFrameNormal = doorFrameNormals[portalIndex];
+
+        // Check if portal is facing the camera (basic culling)
+        glm::vec3 toDoorFrame = glm::normalize(doorFramePos - cameraPos);
+        float facingDot = glm::dot(toDoorFrame, -doorFrameNormal);
+        if (facingDot < 0.1f) continue; // Skip portals not facing camera
+
+        // Step 4a: Create stencil mask for the door opening (not the frame!)
+        glStencilFunc(GL_ALWAYS, recursionLevel + 2, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glStencilMask(0xFF);
+
+        // Disable color and depth writing - only write to stencil
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+
+        // Render a simple quad representing the door opening (NOT the full door frame)
+        // This creates the stencil mask for where the portal effect should appear
+        basicShader.use();
+        basicShader.setMat4("view", &view[0][0]);
+        basicShader.setMat4("projection", &projection[0][0]);
+
+        // Create a simple quad for the door opening
+        static GLuint doorOpeningVAO = 0;
+        if (doorOpeningVAO == 0) {
+            float doorOpeningVertices[] = {
+                // Simple quad for door opening
+                -0.8f, -1.5f, 0.0f,
+                 0.8f, -1.5f, 0.0f,
+                 0.8f,  1.5f, 0.0f,
+                -0.8f,  1.5f, 0.0f
+            };
+
+            unsigned int doorOpeningIndices[] = {
+                0, 1, 2,
+                2, 3, 0
+            };
+
+            GLuint VBO, EBO;
+            glGenVertexArrays(1, &doorOpeningVAO);
+            glGenBuffers(1, &VBO);
+            glGenBuffers(1, &EBO);
+
+            glBindVertexArray(doorOpeningVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(doorOpeningVertices), doorOpeningVertices, GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(doorOpeningIndices), doorOpeningIndices, GL_STATIC_DRAW);
+
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(0);
         }
+
+        // Transform the quad to the door frame position and orientation
+        glm::mat4 doorOpeningModel = glm::mat4(1.0f);
+        doorOpeningModel = glm::translate(doorOpeningModel, doorFramePos);
+        doorOpeningModel = glm::rotate(doorOpeningModel, atan2(doorFrameNormal.z, doorFrameNormal.x), glm::vec3(0, 1, 0));
+        doorOpeningModel = glm::scale(doorOpeningModel, glm::vec3(1.3f, 1.3f, 1.3f)); // Match door frame scale
+
+        basicShader.setMat4("model", &doorOpeningModel[0][0]);
+        glBindVertexArray(doorOpeningVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        // Step 4b: Re-enable color and depth writing
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDepthMask(GL_TRUE);
+
+        // Only render where stencil matches (inside the door opening)
+        glStencilFunc(GL_EQUAL, recursionLevel + 2, 0xFF);
+        glStencilMask(0x00); // Don't modify stencil buffer
+
+        // Clear depth buffer for the portal view
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        // Step 4c: Calculate and render the portal view through this door opening
+        glm::mat4 portalView = calculatePortalView(doorFramePos, doorFrameNormal,
+            cameraPos, cameraFront, cameraUp, recursionLevel);
+
+        // Extract virtual camera position for lighting calculations
+        glm::mat4 invPortalView = glm::inverse(portalView);
+        glm::vec3 virtualCameraPos = glm::vec3(invPortalView[3]);
+
+        // Recursive call to render the next level through this door opening
+        renderRecursivePortals(scene, basicShader, lightingManager,
+            portalView, projection, virtualCameraPos,
+            bookModel, bookshelfModel, bookshelf2Model, columnModel,
+            floorModel, lampModel, doorFrameModel, ceilingModel, wallModel, torchModel,
+            recursionLevel + 1);
     }
+
+    // Step 5: Disable stencil testing
+    glDisable(GL_STENCIL_TEST);
 }
 
 void printSceneDebugInfo(const Scene& scene,
@@ -349,7 +368,7 @@ void printSceneDebugInfo(const Scene& scene,
     const std::unique_ptr<Model>& columnModel,
     const std::unique_ptr<Model>& floorModel,
     const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
+    const std::unique_ptr<Model>& doorFrameModel,
     const std::unique_ptr<Model>& ceilingModel,
     const std::unique_ptr<Model>& wallModel,
     const std::unique_ptr<Model>& torchModel) {
@@ -369,7 +388,7 @@ void printSceneDebugInfo(const Scene& scene,
         else if (obj.model == columnModel.get()) objectType = "Column";
         else if (obj.model == floorModel.get()) objectType = "Floor";
         else if (obj.model == lampModel.get()) objectType = "Lamp";
-        else if (obj.model == portalModel.get()) objectType = "Portal";
+        else if (obj.model == doorFrameModel.get()) objectType = "DoorFrame";
         else if (obj.model == ceilingModel.get()) objectType = "Ceiling";
         else if (obj.model == wallModel.get()) objectType = "Wall";
         else if (obj.model == torchModel.get()) objectType = "Torch";
@@ -414,6 +433,10 @@ void printRoomDebugInfo(float roomRadius, float roomHeight, int numSides) {
     std::cout << "Room Radius: " << roomRadius << std::endl;
     std::cout << "Room Height: " << roomHeight << std::endl;
     std::cout << "Number of Sides: " << numSides << std::endl;
+    std::cout << "==========================" << std::endl;
+    std::cout << "Recursive Portal Info:" << std::endl;
+    std::cout << "Max Recursion Depth: " << maxRecursionDepth << std::endl;
+    std::cout << "Portals Enabled: " << (recursivePortalsEnabled ? "YES" : "NO") << std::endl;
     std::cout << "========================\n" << std::endl;
 }
 
@@ -445,7 +468,7 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
     const std::unique_ptr<Model>& columnModel,
     const std::unique_ptr<Model>& floorModel,
     const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
+    const std::unique_ptr<Model>& doorFrameModel,
     const std::unique_ptr<Model>& ceilingModel,
     const std::unique_ptr<Model>& wallModel,
     const std::unique_ptr<Model>& torchModel,
@@ -475,22 +498,21 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
 
     // Animation speed controls
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS && !animationSpeedChanged) {
-        globalAnimationSpeed = 0.5f; // Slow motion
+        globalAnimationSpeed = 0.5f;
         animationSpeedChanged = true;
         std::cout << "Animation speed: SLOW" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS && !animationSpeedChanged) {
-        globalAnimationSpeed = 1.0f; // Normal speed
+        globalAnimationSpeed = 1.0f;
         animationSpeedChanged = true;
         std::cout << "Animation speed: NORMAL" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS && !animationSpeedChanged) {
-        globalAnimationSpeed = 2.0f; // Fast motion
+        globalAnimationSpeed = 2.0f;
         animationSpeedChanged = true;
         std::cout << "Animation speed: FAST" << std::endl;
     }
 
-    // Reset animation speed change flag
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_RELEASE &&
         glfwGetKey(window, GLFW_KEY_2) == GLFW_RELEASE &&
         glfwGetKey(window, GLFW_KEY_3) == GLFW_RELEASE) {
@@ -504,19 +526,19 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         lightingMode = (lightingMode + 1) % 4;
 
         switch (lightingMode) {
-        case 0: // Normal lighting
+        case 0:
             lightingManager.setAmbientColor(glm::vec3(0.15f, 0.1f, 0.2f), 0.3f);
             std::cout << "Lighting: NORMAL" << std::endl;
             break;
-        case 1: // Warm cozy lighting
+        case 1:
             lightingManager.setAmbientColor(glm::vec3(0.3f, 0.2f, 0.1f), 0.4f);
             std::cout << "Lighting: WARM COZY" << std::endl;
             break;
-        case 2: // Cool mystical lighting
+        case 2:
             lightingManager.setAmbientColor(glm::vec3(0.1f, 0.1f, 0.3f), 0.2f);
             std::cout << "Lighting: COOL MYSTICAL" << std::endl;
             break;
-        case 3: // Dramatic low lighting
+        case 3:
             lightingManager.setAmbientColor(glm::vec3(0.05f, 0.05f, 0.1f), 0.1f);
             std::cout << "Lighting: DRAMATIC" << std::endl;
             break;
@@ -527,26 +549,26 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         lightingKeyPressed = false;
     }
 
-    // Torch intensity control (T key)
+    // Torch intensity control
     if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS && !torchKeyPressed) {
         torchKeyPressed = true;
-        static int torchLevel = 2; // Start at medium
+        static int torchLevel = 2;
         torchLevel = (torchLevel + 1) % 4;
 
         switch (torchLevel) {
-        case 0: // Dim torches
+        case 0:
             lightingManager.setTorchIntensity(1.5f);
             std::cout << "Torch intensity: DIM" << std::endl;
             break;
-        case 1: // Medium torches
+        case 1:
             lightingManager.setTorchIntensity(2.0f);
             std::cout << "Torch intensity: MEDIUM" << std::endl;
             break;
-        case 2: // Bright torches
+        case 2:
             lightingManager.setTorchIntensity(2.5f);
             std::cout << "Torch intensity: BRIGHT" << std::endl;
             break;
-        case 3: // Very bright torches
+        case 3:
             lightingManager.setTorchIntensity(3.0f);
             std::cout << "Torch intensity: VERY BRIGHT" << std::endl;
             break;
@@ -557,33 +579,37 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         torchKeyPressed = false;
     }
 
-    // Darkness level control (B key for "Brightness")
+    // Darkness level control
     if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !darknessKeyPressed) {
         darknessKeyPressed = true;
-        static int darknessLevel = 1; // Start medium dark
+        static int darknessLevel = 1;
         darknessLevel = (darknessLevel + 1) % 4;
 
         switch (darknessLevel) {
-        case 0: // Pitch black
+        case 0:
             lightingManager.setAmbientDarkness(0.0f);
             std::cout << "Darkness: PITCH BLACK" << std::endl;
             break;
-        case 1: // Very dark
+        case 1:
             lightingManager.setAmbientDarkness(0.2f);
             std::cout << "Darkness: VERY DARK" << std::endl;
             break;
-        case 2: // Dark
+        case 2:
             lightingManager.setAmbientDarkness(0.4f);
             std::cout << "Darkness: DARK" << std::endl;
             break;
-        case 3: // Medium dark
+        case 3:
             lightingManager.setAmbientDarkness(0.6f);
             std::cout << "Darkness: MEDIUM DARK" << std::endl;
             break;
         }
     }
 
-    // Dramatic mode toggle (M key for "Mode")
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE) {
+        darknessKeyPressed = false;
+    }
+
+    // Dramatic mode toggle
     if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS && !dramaticKeyPressed) {
         dramaticKeyPressed = true;
         static bool dramaticMode = false;
@@ -597,8 +623,8 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         dramaticKeyPressed = false;
     }
 
-    // Torch flicker controls (+ and - keys)
-    if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS && !plusKeyPressed) { // + key
+    // Torch flicker controls
+    if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS && !plusKeyPressed) {
         plusKeyPressed = true;
         lightingManager.increaseTorchFlicker();
         std::cout << "Increased torch flicker" << std::endl;
@@ -618,41 +644,27 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         minusKeyPressed = false;
     }
 
-    // Enhanced Portal controls (P key)
+    // Recursive Portal controls
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !portalTogglePressed) {
         portalTogglePressed = true;
-        static bool portalsEnabled = true;
-        portalsEnabled = !portalsEnabled;
-        portalSystem.setActive(portalsEnabled);
-        std::cout << "Enhanced Portals: " << (portalsEnabled ? "ENABLED" : "DISABLED") << std::endl;
+        recursivePortalsEnabled = !recursivePortalsEnabled;
+        std::cout << "Recursive Portals: " << (recursivePortalsEnabled ? "ENABLED" : "DISABLED") << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
         portalTogglePressed = false;
     }
 
-    // Portal quality controls (Q key) - Keep for compatibility but not used in stencil approach
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS && !portalQualityPressed) {
-        portalQualityPressed = true;
-        std::cout << "Portal quality setting not applicable to enhanced stencil buffer rendering" << std::endl;
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_RELEASE) {
-        portalQualityPressed = false;
-    }
-
-    // Recursion depth controls (R key)
+    // Recursion depth controls
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS && !recursionKeyPressed) {
         recursionKeyPressed = true;
-        static int recursionDepth = 5;
-        recursionDepth = recursionDepth % 8 + 1; // Cycle 1-8
-        portalSystem.setRecursionDepth(recursionDepth);
-        std::cout << "Portal recursion depth: " << recursionDepth << std::endl;
+        maxRecursionDepth = maxRecursionDepth % 6 + 1; // Cycle 1-6
+        std::cout << "Portal recursion depth: " << maxRecursionDepth << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE) {
         recursionKeyPressed = false;
     }
 
-    // Debug toggle (H key)
+    // Debug toggle
     if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS && !hKeyPressed) {
         hKeyPressed = true;
         showDebugInfo = !showDebugInfo;
@@ -662,9 +674,8 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
             printRoomDebugInfo(roomRadius, roomHeight, numSides);
             printCameraDebugInfo(cameraPos, cameraFront, yaw, pitch);
             printLightingDebugInfo(lightingManager);
-            portalSystem.printDebugInfo();
             printSceneDebugInfo(scene, bookModel, bookshelfModel, bookshelf2Model,
-                columnModel, floorModel, lampModel, portalModel,
+                columnModel, floorModel, lampModel, doorFrameModel,
                 ceilingModel, wallModel, torchModel);
         }
         else {
@@ -688,10 +699,10 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // Enable stencil buffer for enhanced portal rendering
+    // CRITICAL: Enable stencil buffer for recursive portals
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL - Recursive Portals", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window!\n";
         glfwTerminate();
@@ -713,7 +724,9 @@ int main() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    std::cout << "GL ready. Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "BABEL - Recursive Portal System" << std::endl;
+    std::cout << "GL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "GL Renderer: " << glGetString(GL_RENDERER) << std::endl;
 
     // Load shaders
     Shader basicShader("shaders/book.vert", "shaders/book.frag");
@@ -730,7 +743,7 @@ int main() {
     std::unique_ptr<Model> columnModel = std::make_unique<Model>("assets/models/column.obj");
     std::unique_ptr<Model> floorModel = std::make_unique<Model>("assets/models/floor.obj");
     std::unique_ptr<Model> lampModel = std::make_unique<Model>("assets/models/lamb.obj");
-    std::unique_ptr<Model> portalModel = std::make_unique<Model>("assets/models/portal.obj");
+    std::unique_ptr<Model> doorFrameModel = std::make_unique<Model>("assets/models/door.obj");
     std::unique_ptr<Model> ceilingModel = std::make_unique<Model>("assets/models/ceiling.obj");
     std::unique_ptr<Model> wallModel = std::make_unique<Model>("assets/models/wall.obj");
     std::unique_ptr<Model> torchModel = std::make_unique<Model>("assets/models/torch.obj");
@@ -744,10 +757,10 @@ int main() {
     // Create lighting manager
     LightingManager lightingManager;
 
-    // Create enhanced portal system
+    // Create portal system (still needed for some functionality)
     PortalSystem portalSystem;
 
-    std::cout << "Setting up library room..." << std::endl;
+    std::cout << "Setting up infinite library with recursive portals..." << std::endl;
 
     // FLOOR
     scene.addObject(floorModel.get(),
@@ -795,14 +808,14 @@ int main() {
             glm::vec3(1.5f, 3.2f, 1.5f));
     }
 
-    // PORTALS
+    // DOOR FRAMES - These create the recursive portal effect
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
         float x = roomRadius * 0.8f * cos(angle);
         float z = roomRadius * 0.8f * sin(angle);
         float rotationToFaceCenter = angle + glm::radians(90.0f);
 
-        scene.addObject(portalModel.get(),
+        scene.addObject(doorFrameModel.get(),
             glm::vec3(x, 0.0f, z),
             glm::vec3(0.0f, rotationToFaceCenter, 0.0f),
             glm::vec3(1.3f, 1.3f, 1.3f));
@@ -833,12 +846,11 @@ int main() {
             glm::vec3(0.0f, rotationToFaceCenter, 0.0f),
             scale);
     }
-    // (torches) missing
 
-    // FLOATING BOOKS
-    std::cout << "Setting up animations (books)..." << std::endl;
+    // FLOATING BOOKS - Enhanced magical animations
+    std::cout << "Setting up magical floating books..." << std::endl;
 
-    // Central orbiting and floating books
+    // Central orbiting books
     for (int i = 0; i < 6; i++) {
         float angle = glm::radians(60.0f * static_cast<float>(i));
         float x = 2.0f * cos(angle);
@@ -873,7 +885,6 @@ int main() {
         float colAngle = glm::radians(90.0f * static_cast<float>(col));
         glm::vec3 columnPos = glm::vec3(3.0f * cos(colAngle), 2.0f, 3.0f * sin(colAngle));
 
-        // Add 2 books per column at different heights
         for (int book = 0; book < 2; book++) {
             size_t bookIndex = scene.objects.size();
             glm::vec3 bookStartPos = columnPos + glm::vec3(1.5f, book * 1.0f, 0.0f);
@@ -883,21 +894,19 @@ int main() {
                 glm::vec3(0.0f, 0.0f, 0.0f),
                 glm::vec3(0.9f, 0.9f, 0.9f));
 
-            // Orbit around the column
             scene.objects[bookIndex].setOrbiting(true,
                 columnPos + glm::vec3(0.0f, book * 1.0f, 0.0f),
                 1.8f,
-                0.3f + book * 0.15f); // Different speeds
+                0.3f + book * 0.15f);
             scene.objects[bookIndex].setRotating(true, 1.2f);
 
-            // Add slight floating to some
             if (book % 2 == 0) {
                 scene.objects[bookIndex].setFloating(true, 0.2f, 1.5f);
             }
         }
     }
 
-    // High-altitude slowly drifting books
+    // High-altitude books
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
         float x = 5.0f * cos(angle);
@@ -906,29 +915,26 @@ int main() {
         size_t bookIndex = scene.objects.size();
         scene.addObject(bookModel.get(),
             glm::vec3(x, 4.5f, z),
-            glm::vec3(glm::radians(15.0f), angle, 0.0f), // Slight tilt
+            glm::vec3(glm::radians(15.0f), angle, 0.0f),
             glm::vec3(1.1f, 1.1f, 1.1f));
 
-        // Slow, large orbit with floating
         scene.objects[bookIndex].setOrbiting(true, glm::vec3(0.0f, 4.5f, 0.0f), 5.0f, 0.15f);
         scene.objects[bookIndex].setFloating(true, 0.3f, 0.8f);
         scene.objects[bookIndex].setRotating(true, 0.3f);
     }
 
     // SETUP LIBRARY LIGHTING
-    std::cout << "Setting up dark library lighting with dramatic torches..." << std::endl;
+    std::cout << "Setting up dramatic library lighting..." << std::endl;
     lightingManager.setupLibraryLighting(roomRadius, roomHeight);
+    lightingManager.setAmbientDarkness(0.2f);
+    lightingManager.setTorchIntensity(2.5f);
 
-    // Set initial dark atmosphere
-    lightingManager.setAmbientDarkness(0.2f); // Start very dark
-    lightingManager.setTorchIntensity(2.5f);   // Bright torches for contrast
-
-    // SETUP ENHANCED PORTAL SYSTEM
-    std::cout << "Setting up enhanced recursive portal system..." << std::endl;
+    // SETUP PORTAL SYSTEM (for compatibility)
+    std::cout << "Setting up portal system..." << std::endl;
     portalSystem.initialize(roomRadius, roomHeight);
 
     std::cout << "Library setup complete!" << std::endl;
-    std::cout << "\n=== BABEL ENHANCED CONTROLS ===" << std::endl;
+    std::cout << "\n=== BABEL RECURSIVE PORTAL CONTROLS ===" << std::endl;
     std::cout << "  WASD + Mouse - Move camera" << std::endl;
     std::cout << "  Space/Ctrl - Up/Down" << std::endl;
     std::cout << "  H - Debug info" << std::endl;
@@ -938,11 +944,15 @@ int main() {
     std::cout << "  B - Darkness level" << std::endl;
     std::cout << "  M - Toggle dramatic mode" << std::endl;
     std::cout << "  +/- - Torch flicker" << std::endl;
-    std::cout << "  P - Toggle ENHANCED portals on/off" << std::endl;
-    std::cout << "  Q - Portal quality (not used in stencil rendering)" << std::endl;
-    std::cout << "  R - Recursion depth (1-8 levels)" << std::endl;
-    std::cout << "  WALK INTO PORTALS to teleport!" << std::endl;
-    std::cout << "=================================\n" << std::endl;
+    std::cout << "  P - Toggle RECURSIVE PORTALS on/off" << std::endl;
+    std::cout << "  R - Recursion depth (1-6 levels)" << std::endl;
+    std::cout << "==============================================" << std::endl;
+    std::cout << "RECURSIVE PORTAL FEATURES:" << std::endl;
+    std::cout << "- True recursive rendering using stencil buffer" << std::endl;
+    std::cout << "- Walk through door frames to see infinite rooms" << std::endl;
+    std::cout << "- Adjustable recursion depth for performance" << std::endl;
+    std::cout << "- Based on https://th0mas.nl/2013/05/19/rendering-recursive-portals-with-opengl/" << std::endl;
+    std::cout << "==============================================\n" << std::endl;
 
     // Camera setup
     glm::vec3 cameraPos = glm::vec3(1.2f, 2.3f, 1.16f);
@@ -962,7 +972,7 @@ int main() {
 
         processInput(window, cameraPos, cameraFront, cameraUp, deltaTime, scene,
             bookModel, bookshelfModel, bookshelf2Model, columnModel,
-            floorModel, lampModel, portalModel, ceilingModel, wallModel, torchModel,
+            floorModel, lampModel, doorFrameModel, ceilingModel, wallModel, torchModel,
             roomRadius, roomHeight, numSides, yaw, pitch, lightingManager, portalSystem);
 
         glm::vec3 direction;
@@ -977,42 +987,26 @@ int main() {
         // Update lighting animations
         lightingManager.update(deltaTime * globalAnimationSpeed);
 
-        // CRITICAL: Handle player teleportation through portals
-        portalSystem.handlePlayerTeleport(cameraPos);
-
-        // Update portal distances
-        portalSystem.updateDistances(cameraPos);
-
         // Create view and projection matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
+            static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 100.0f);
 
-        // ENHANCED RENDERING: Clear screen including stencil buffer
+        // RECURSIVE PORTAL RENDERING
         glClearColor(0.01f, 0.005f, 0.02f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        // Enable stencil testing for enhanced portal rendering
-        glEnable(GL_STENCIL_TEST);
-        glStencilMask(0xFF);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-
-        // MAIN RENDERING: Use enhanced portal system or fallback
-        if (portalSystem.areActive()) {
-            // Use enhanced portal rendering with stencil buffer
-            renderWithEnhancedPortals(scene, basicShader, portalShader, lightingManager,
-                portalSystem, view, projection, cameraPos,
+        if (recursivePortalsEnabled) {
+            // Use recursive portal rendering with stencil buffer
+            renderRecursivePortals(scene, basicShader, lightingManager, view, projection, cameraPos,
                 bookModel, bookshelfModel, bookshelf2Model, columnModel,
-                floorModel, lampModel, portalModel, ceilingModel,
-                wallModel, torchModel);
+                floorModel, lampModel, doorFrameModel, ceilingModel, wallModel, torchModel);
         }
         else {
-            // Fallback: render normally without portals
-            glDisable(GL_STENCIL_TEST);
-            renderNormalScene(scene, basicShader, lightingManager, view, projection, cameraPos,
+            // Standard rendering without recursive portals
+            renderScene(scene, basicShader, lightingManager, view, projection, cameraPos,
                 bookModel, bookshelfModel, bookshelf2Model, columnModel,
-                floorModel, lampModel, portalModel, ceilingModel,
-                wallModel, torchModel);
+                floorModel, lampModel, doorFrameModel, ceilingModel, wallModel, torchModel);
         }
 
         glfwSwapBuffers(window);

@@ -40,6 +40,19 @@ uniform sampler2D metallicMap;
 uniform vec3 ambientColor;
 uniform float ambientStrength;
 
+// Infinite library uniforms
+uniform vec3 roomColorTint = vec3(1.0, 1.0, 1.0);
+uniform float roomScale = 1.0;
+uniform vec3 fogColor = vec3(0.01, 0.005, 0.02);
+uniform float fogDensity = 0.02;
+
+// Calculate distance-based fog
+float calculateFog(vec3 fragPos, vec3 viewPos) {
+    float distance = length(fragPos - viewPos);
+    float fogFactor = exp(-fogDensity * distance);
+    return clamp(fogFactor, 0.0, 1.0);
+}
+
 // Calculate point light contribution
 vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, vec3 albedo, float roughness, float metallic) {
     vec3 lightDir = normalize(light.position - fragPos);
@@ -82,11 +95,14 @@ void main() {
     float roughness = texture(roughnessMap, TexCoord).r;
     float metallic = texture(metallicMap, TexCoord).r;
     
+    // Apply room color tint to albedo
+    albedo *= roomColorTint;
+    
     // Normalize vectors
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
     
-    // Start with ambient lighting
+    // Start with ambient lighting (apply room tint)
     vec3 result = ambientColor * ambientStrength * albedo;
     
     // Add contribution from all point lights
@@ -99,9 +115,13 @@ void main() {
         result += calcDirLight(dirLights[i], norm, viewDir, albedo, roughness, metallic);
     }
     
+    // Apply fog for infinite depth effect
+    float fogFactor = calculateFog(FragPos, viewPos);
+    result = mix(fogColor, result, fogFactor);
+    
     // Tone mapping and gamma correction
-    result = result / (result + vec3(1.0)); // Simple tone mapping
-    result = pow(result, vec3(1.0/2.2)); // Gamma correction
+    result = result / (result + vec3(1.0));
+    result = pow(result, vec3(1.0/2.2));
     
     FragColor = vec4(result, 1.0);
 }

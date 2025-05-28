@@ -2,8 +2,35 @@
 #include <iostream>
 #include <cmath>
 
+// NEW: Implement clipped projection matrix
+glm::mat4 Portal::clippedProjMat(const glm::mat4& viewMat, const glm::mat4& projMat) const {
+    // Calculate the clipping plane in view space
+    glm::vec4 clipPlane = viewMat * glm::vec4(normal, -glm::dot(normal, position));
+
+    // Modify the projection matrix to clip at the portal plane
+    glm::mat4 clippedProj = projMat;
+
+    // Oblique view frustum clipping
+    glm::vec4 q = glm::inverse(clippedProj) * glm::vec4(
+        (clipPlane.x < 0 ? -1 : (clipPlane.x > 0 ? 1 : 0)),
+        (clipPlane.y < 0 ? -1 : (clipPlane.y > 0 ? 1 : 0)),
+        1.0f,
+        1.0f
+    );
+
+    glm::vec4 c = clipPlane * (2.0f / glm::dot(clipPlane, q));
+
+    // Replace the third row of the projection matrix
+    clippedProj[0][2] = c.x;
+    clippedProj[1][2] = c.y;
+    clippedProj[2][2] = c.z + 1.0f;
+    clippedProj[3][2] = c.w;
+
+    return clippedProj;
+}
+
 PortalSystem::PortalSystem() {
-    // Create room variations for infinite diversity
+    // Create room variations for infinite depth
     roomVariations = {
         {glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 30.0f},     // Normal room
         {glm::vec3(1.2f, 0.8f, 0.6f), 1.1f, 35.0f},     // Warm, larger
@@ -23,7 +50,7 @@ PortalSystem::~PortalSystem() {
 void PortalSystem::initialize(float roomRadius, float roomHeight) {
     portals.clear();
 
-    std::cout << "Setting up recursive portal system..." << std::endl;
+    std::cout << "Setting up enhanced recursive portal system..." << std::endl;
 
     // Create 4 portals - each leads to a room in a specific direction
     for (int i = 0; i < 4; i++) {
@@ -53,72 +80,18 @@ void PortalSystem::initialize(float roomRadius, float roomHeight) {
         // Destination normal (opposite direction)
         portal.destinationNormal = glm::vec3(cos(angle), 0.0f, sin(angle));
 
-        // Create framebuffer for this portal
-        glGenFramebuffers(1, &portal.framebuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
-
-        // Color texture
-        glGenTextures(1, &portal.colorTexture);
-        glBindTexture(GL_TEXTURE_2D, portal.colorTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureSize, textureSize, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        // Depth texture
-        glGenTextures(1, &portal.depthTexture);
-        glBindTexture(GL_TEXTURE_2D, portal.depthTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, textureSize, textureSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        // Attach to framebuffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, portal.colorTexture, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, portal.depthTexture, 0);
-
-        // Check framebuffer status
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "Portal framebuffer " << i << " not complete! Status: 0x" << std::hex << status << std::endl;
-        }
-        else {
-            std::cout << "Portal " << i << " framebuffer created successfully!" << std::endl;
-        }
-
         portals.push_back(portal);
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    std::cout << "Portal system initialized with " << portals.size() << " portals!" << std::endl;
+    // Link portals to each other (circular linking)
+    for (size_t i = 0; i < portals.size(); i++) {
+        portals[i].destination = &portals[(i + 1) % portals.size()];
+    }
+
+    std::cout << "Enhanced portal system initialized with " << portals.size() << " portals!" << std::endl;
 }
 
-glm::mat4 PortalSystem::calculatePortalView(const Portal& portal,
-    const glm::vec3& playerPos,
-    const glm::vec3& playerDir,
-    int recursionLevel) {
-
-    // Simple approach: just move the camera to the destination room
-    // and offset it based on the player's relative position to the portal
-
-    glm::vec3 relativeToPortal = playerPos - portal.position;
-
-    // Transform relative position to destination space
-    glm::vec3 virtualCameraPos = portal.destinationPos + relativeToPortal;
-
-    // Add depth offset for recursion levels
-    float depthOffset = recursionLevel * roomVariations[portal.portalId % roomVariations.size()].roomOffset;
-    virtualCameraPos += glm::vec3(0.0f, 0.0f, depthOffset);
-
-    // Use same camera direction
-    glm::vec3 virtualTarget = virtualCameraPos + playerDir;
-
-    return glm::lookAt(virtualCameraPos, virtualTarget, glm::vec3(0.0f, 1.0f, 0.0f));
-}
-
-
+// MODIFIED: Your existing renderPortalViews now uses stencil buffer approach
 void PortalSystem::renderPortalViews(
     const std::function<void(const glm::mat4&, const glm::mat4&, int, const RoomVariation&)>& renderScene,
     const glm::vec3& playerPos,
@@ -127,101 +100,197 @@ void PortalSystem::renderPortalViews(
 
     if (!areActive()) return;
 
-    // Save current viewport
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
+    // Create simple render function for stencil system
+    auto simpleRenderScene = [&renderScene](const glm::mat4& view, const glm::mat4& proj) {
+        // Use default room variation for main scene
+        RoomVariation defaultVariation;
+        renderScene(view, proj, 0, defaultVariation);
+        };
 
-    // Render each portal view
-    for (int portalIndex = 0; portalIndex < portals.size(); portalIndex++) {
-        auto& portal = portals[portalIndex];
+    // Calculate view matrix
+    glm::vec3 target = playerPos + playerDir;
+    glm::mat4 view = glm::lookAt(playerPos, target, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        // Skip very distant portals
-        if (portal.distanceFromPlayer > 80.0f) continue;
-
-        // Bind portal framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
-        glViewport(0, 0, textureSize, textureSize);
-
-        // Clear with the same background as main scene
-        glClearColor(0.01f, 0.005f, 0.02f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Enable depth testing
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
-
-        // Calculate virtual camera view
-        glm::mat4 virtualView = calculatePortalView(portal, playerPos, playerDir, 0);
-
-        // Create room variation for this portal
-        const RoomVariation& variation = roomVariations[portalIndex % roomVariations.size()];
-
-        // Render the scene from the virtual camera
-        // This should render ALL objects (books, shelves, torches, etc.)
-        renderScene(virtualView, projection, 0, variation);
-
-        // Optional: Render additional recursion levels for infinite effect
-        for (int recursionLevel = 1; recursionLevel < maxRecursionDepth; recursionLevel++) {
-            glDepthFunc(GL_LEQUAL); // Allow some overlap
-
-            glm::mat4 deeperView = calculatePortalView(portal, playerPos, playerDir, recursionLevel);
-            RoomVariation deeperVariation = variation;
-            deeperVariation.scaleMultiplier *= (1.0f - recursionLevel * 0.1f);
-            deeperVariation.colorTint *= (1.0f - recursionLevel * 0.2f);
-
-            renderScene(deeperView, projection, recursionLevel, deeperVariation);
-        }
-
-        glDepthFunc(GL_LESS);
-    }
-
-    // Restore main framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+    // Use stencil buffer recursive rendering
+    drawRecursivePortals(simpleRenderScene, view, projection);
 }
+
+// NEW: Stencil buffer recursive rendering
+void PortalSystem::drawRecursivePortals(
+    const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
+    const glm::mat4& viewMat,
+    const glm::mat4& projMat,
+    size_t recursionLevel) {
+
+    if (!areActive()) {
+        drawNonPortals(renderScene, viewMat, projMat);
+        return;
+    }
+
+    for (auto& portal : portals) {
+        if (!portal.active || !portal.destination) continue;
+
+        // Skip very distant portals for performance  
+        if (portal.distanceFromPlayer > 100.0f) continue;
+
+        // STEP 1: Draw portal into stencil buffer
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_STENCIL_TEST);
+
+        // Fail stencil test when inside of outer portal
+        glStencilFunc(GL_NOTEQUAL, recursionLevel, 0xFF);
+        glStencilOp(GL_INCR, GL_KEEP, GL_KEEP);
+        glStencilMask(0xFF);
+
+        // This would draw portal geometry - we'll handle this in main.cpp
+        // drawPortalGeometry(portal, viewMat, projMat, portalShader, drawPortalModel);
+
+        // STEP 2: Calculate destination view matrix
+        glm::mat4 destView = viewMat;
+
+        // Simple transform - move camera to destination
+        glm::vec3 currentPos = glm::vec3(glm::inverse(viewMat)[3]);
+        glm::vec3 relativePos = currentPos - portal.position;
+        glm::vec3 newPos = portal.destination->position + relativePos;
+
+        // Reconstruct view matrix at new position
+        glm::vec3 front = glm::vec3(viewMat[0][2], viewMat[1][2], viewMat[2][2]) * -1.0f;
+        glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+        destView = glm::lookAt(newPos, newPos + front, up);
+
+        // STEP 3: Render scene through portal
+        if (recursionLevel >= maxRecursionDepth) {
+            // Base case - render final scene
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+            glDepthMask(GL_TRUE);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            glEnable(GL_DEPTH_TEST);
+            glEnable(GL_STENCIL_TEST);
+            glStencilMask(0x00);
+            glStencilFunc(GL_EQUAL, recursionLevel + 1, 0xFF);
+
+            // Render with clipped projection
+            renderScene(destView, portal.clippedProjMat(destView, projMat));
+        }
+        else {
+            // Recursive case
+            drawRecursivePortals(renderScene, destView,
+                portal.clippedProjMat(destView, projMat),
+                recursionLevel + 1);
+        }
+
+        // STEP 4: Clean up stencil buffer
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+        glEnable(GL_STENCIL_TEST);
+        glStencilMask(0xFF);
+        glStencilFunc(GL_NOTEQUAL, recursionLevel + 1, 0xFF);
+        glStencilOp(GL_DECR, GL_KEEP, GL_KEEP);
+
+        // Draw portal geometry again for cleanup - handle in main.cpp
+    }
+
+    // STEP 5: Prepare depth buffer for current level
+    glDisable(GL_STENCIL_TEST);
+    glStencilMask(0x00);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_ALWAYS);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    // Draw portals into depth buffer - handle in main.cpp
+
+    glDepthFunc(GL_LESS);
+
+    // STEP 6: Render current level scene
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0x00);
+    glStencilFunc(GL_LEQUAL, recursionLevel, 0xFF);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+
+    drawNonPortals(renderScene, viewMat, projMat);
+}
+
+void PortalSystem::drawNonPortals(
+    const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
+    const glm::mat4& viewMat,
+    const glm::mat4& projMat) {
+
+    renderScene(viewMat, projMat);
+}
+
+void PortalSystem::drawPortalGeometry(const Portal& portal,
+    const glm::mat4& viewMat,
+    const glm::mat4& projMat,
+    Shader& portalShader,
+    const std::function<void()>& drawPortalModel) {
+    // This will be called from main.cpp with your portal shader and model
+    portalShader.use();
+    portalShader.setMat4("view", &viewMat[0][0]);
+    portalShader.setMat4("projection", &projMat[0][0]);
+
+    // Calculate model matrix for this portal
+    float angle = atan2(portal.normal.z, portal.normal.x) + glm::radians(90.0f);
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+    modelMatrix = glm::translate(modelMatrix, portal.position);
+    modelMatrix = glm::rotate(modelMatrix, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(1.3f, 1.3f, 1.3f));
+
+    portalShader.setMat4("model", &modelMatrix[0][0]);
+    drawPortalModel();
+}
+
+void PortalSystem::handlePlayerTeleport(glm::vec3& playerPos) {
+    for (auto& portal : portals) {
+        if (!portal.active || !portal.destination) continue;
+
+        float distance = glm::length(playerPos - portal.position);
+        if (distance < teleportThreshold) {
+            // Calculate relative position to portal
+            glm::vec3 relativePos = playerPos - portal.position;
+
+            // Teleport player to destination
+            playerPos = portal.destination->position + relativePos;
+
+            std::cout << "Player teleported through portal " << portal.portalId << std::endl;
+            break;
+        }
+    }
+}
+
+// EXISTING: Keep your existing functions unchanged
+glm::mat4 PortalSystem::calculatePortalView(const Portal& portal, const glm::vec3& playerPos,
+    const glm::vec3& playerDir, int recursionLevel) {
+
+    glm::vec3 relativeToPortal = playerPos - portal.position;
+    glm::vec3 virtualCameraPos = portal.destinationPos + relativeToPortal;
+
+    float depthOffset = recursionLevel * roomVariations[portal.portalId % roomVariations.size()].roomOffset;
+    virtualCameraPos += glm::vec3(0.0f, 0.0f, depthOffset);
+
+    glm::vec3 virtualTarget = virtualCameraPos + playerDir;
+
+    return glm::lookAt(virtualCameraPos, virtualTarget, glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
 void PortalSystem::bindPortalTexture(int portalIndex, Shader& shader) {
-    if (portalIndex >= 0 && portalIndex < portals.size() && portals[portalIndex].active) {
-        // Bind the portal's rendered view texture
-        glBindTexture(GL_TEXTURE_2D, portals[portalIndex].colorTexture);
-
-        // Check if texture is valid
-        GLint textureWidth;
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &textureWidth);
-        if (textureWidth != textureSize) {
-            std::cerr << "Warning: Portal " << portalIndex << " texture may not be properly initialized!" << std::endl;
-        }
-    }
-    else {
-        // Bind a fallback texture or create a simple colored texture
-        static GLuint fallbackTexture = 0;
-        if (fallbackTexture == 0) {
-            glGenTextures(1, &fallbackTexture);
-            glBindTexture(GL_TEXTURE_2D, fallbackTexture);
-
-            // Create a simple blue swirling pattern
-            unsigned char data[64 * 64 * 3];
-            for (int y = 0; y < 64; y++) {
-                for (int x = 0; x < 64; x++) {
-                    int index = (y * 64 + x) * 3;
-                    float fx = (x - 32) / 32.0f;
-                    float fy = (y - 32) / 32.0f;
-                    float dist = sqrt(fx * fx + fy * fy);
-                    float angle = atan2(fy, fx);
-
-                    data[index + 0] = (unsigned char)(128 + 127 * sin(angle * 4 + dist * 8)); // Red
-                    data[index + 1] = (unsigned char)(64 + 64 * cos(dist * 6)); // Green
-                    data[index + 2] = (unsigned char)(200 + 55 * sin(dist * 10)); // Blue
-                }
-            }
-
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 64, 64, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        }
+    // Keep existing implementation for compatibility
+    // This might not be used in stencil buffer approach but keep for fallback
+    static GLuint fallbackTexture = 0;
+    if (fallbackTexture == 0) {
+        glGenTextures(1, &fallbackTexture);
         glBindTexture(GL_TEXTURE_2D, fallbackTexture);
+        unsigned char data[] = { 50, 50, 100, 255 };
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     }
+    glBindTexture(GL_TEXTURE_2D, fallbackTexture);
 }
 
 void PortalSystem::updateDistances(const glm::vec3& playerPos) {
@@ -234,83 +303,24 @@ void PortalSystem::setActive(bool active) {
     for (auto& portal : portals) {
         portal.active = active;
     }
-    std::cout << "Portals " << (active ? "ENABLED" : "DISABLED") << std::endl;
+    std::cout << "Enhanced portals " << (active ? "ENABLED" : "DISABLED") << std::endl;
 }
 
 void PortalSystem::setQuality(int size) {
-    if (size != textureSize) {
-        textureSize = size;
-
-        // Recreate framebuffers with new size
-        for (auto& portal : portals) {
-            if (portal.framebuffer != 0) {
-                // Delete old textures
-                if (portal.colorTexture != 0) glDeleteTextures(1, &portal.colorTexture);
-                if (portal.depthTexture != 0) glDeleteTextures(1, &portal.depthTexture);
-
-                // Recreate color texture
-                glGenTextures(1, &portal.colorTexture);
-                glBindTexture(GL_TEXTURE_2D, portal.colorTexture);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, textureSize, textureSize, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-                // Recreate depth texture
-                glGenTextures(1, &portal.depthTexture);
-                glBindTexture(GL_TEXTURE_2D, portal.depthTexture);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, textureSize, textureSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-                // Reattach to framebuffer
-                glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, portal.colorTexture, 0);
-                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, portal.depthTexture, 0);
-
-                if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-                    std::cerr << "Portal framebuffer recreation failed!" << std::endl;
-                }
-            }
-        }
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        std::cout << "Portal quality updated to " << textureSize << "x" << textureSize << std::endl;
-    }
+    // Keep for compatibility - not used in stencil approach
+    std::cout << "Portal quality setting not applicable to stencil buffer rendering" << std::endl;
 }
 
 void PortalSystem::setRecursionDepth(int depth) {
-    maxRecursionDepth = glm::clamp(depth, 1, 8); // Limit for performance
+    maxRecursionDepth = std::max(1, std::min(depth, 8));
     std::cout << "Portal recursion depth set to: " << maxRecursionDepth << std::endl;
 }
 
-void PortalSystem::cleanup() {
-    for (auto& portal : portals) {
-        if (portal.framebuffer) {
-            glDeleteFramebuffers(1, &portal.framebuffer);
-            portal.framebuffer = 0;
-        }
-        if (portal.colorTexture) {
-            glDeleteTextures(1, &portal.colorTexture);
-            portal.colorTexture = 0;
-        }
-        if (portal.depthTexture) {
-            glDeleteTextures(1, &portal.depthTexture);
-            portal.depthTexture = 0;
-        }
-    }
-    portals.clear();
-    std::cout << "Portal system cleaned up." << std::endl;
-}
-
 void PortalSystem::printDebugInfo() const {
-    std::cout << "\n=== PORTAL SYSTEM DEBUG ===" << std::endl;
+    std::cout << "\n=== ENHANCED PORTAL SYSTEM DEBUG ===" << std::endl;
     std::cout << "Active portals: " << portals.size() << std::endl;
-    std::cout << "Texture resolution: " << textureSize << "x" << textureSize << std::endl;
     std::cout << "Max recursion depth: " << maxRecursionDepth << std::endl;
+    std::cout << "Teleport threshold: " << teleportThreshold << std::endl;
     std::cout << "Portals enabled: " << (areActive() ? "YES" : "NO") << std::endl;
 
     for (size_t i = 0; i < portals.size(); i++) {
@@ -320,9 +330,12 @@ void PortalSystem::printDebugInfo() const {
         std::cout << "  Destination: (" << portal.destinationPos.x << ", " << portal.destinationPos.y << ", " << portal.destinationPos.z << ")" << std::endl;
         std::cout << "  Distance: " << portal.distanceFromPlayer << std::endl;
         std::cout << "  Active: " << (portal.active ? "YES" : "NO") << std::endl;
-        std::cout << "  Framebuffer ID: " << portal.framebuffer << std::endl;
-        std::cout << "  Color Texture ID: " << portal.colorTexture << std::endl;
-        std::cout << "  Depth Texture ID: " << portal.depthTexture << std::endl;
+        std::cout << "  Has destination: " << (portal.destination ? "YES" : "NO") << std::endl;
     }
-    std::cout << "==========================\n" << std::endl;
+    std::cout << "=======================================\n" << std::endl;
+}
+
+void PortalSystem::cleanup() {
+    portals.clear();
+    std::cout << "Enhanced portal system cleaned up." << std::endl;
 }

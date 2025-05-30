@@ -784,8 +784,8 @@ int main() {
 
     // Create scene
     Scene scene;
-    const float roomRadius = 8.0f;
-    const float roomHeight = 6.0f;
+    const float roomRadius = 16.0f;
+    const float roomHeight = 12.0f;
     const int numSides = 8;
 
     // Create lighting manager
@@ -796,26 +796,26 @@ int main() {
 
     std::cout << "Setting up infinite library with recursive portals..." << std::endl;
 
-    // FLOOR
+    // FLOOR - scaled up
     scene.addObject(floorModel.get(),
-        glm::vec3(1.1f, 0.0f, 1.0f),
+        glm::vec3(2.2f, 0.0f, 2.0f),  // Scaled positions
         glm::vec3(0.0f, glm::radians(90.0f), 0.0f),
-        glm::vec3(2.5f, 1.0f, 2.5f));
+        glm::vec3(5.0f, 1.0f, 5.0f)); // Scaled from 2.5f to 5.0f
 
-    // CEILING
+    // CEILING - scaled up
     scene.addObject(ceilingModel.get(),
-        glm::vec3(0.0f, roomHeight + 1.1f, 0.0f),
+        glm::vec3(0.0f, roomHeight + 2.2f, 0.0f), // Scaled height
         glm::vec3(0.0f, glm::radians(105.0f), 0.0f),
-        glm::vec3(3.2f, 2.0f, 3.2f));
+        glm::vec3(6.4f, 4.0f, 6.4f)); // Scaled from 3.2f to 6.4f
 
-    // LAMP
+    // LAMP - scaled up
     scene.addObject(lampModel.get(),
-        glm::vec3(0.0f, roomHeight + 0.9f, 0.0f),
+        glm::vec3(0.0f, roomHeight + 3.4f, 0.0f), // Scaled height
         glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(3.5f, 2.0f, 3.5f));
+        glm::vec3(7.0f, 4.0f, 7.0f)); // Scaled from 3.5f to 7.0f
     scene.objects[2].setRotating(true, 0.3f);
 
-    // WALLS
+    // WALLS - with proper scaling and better proportions
     for (int i = 0; i < numSides; i++) {
         float angle = glm::radians(360.0f * static_cast<float>(i) / static_cast<float>(numSides));
         float x = roomRadius * cos(angle);
@@ -825,24 +825,24 @@ int main() {
             wallRotation += glm::radians(90.0f);
         }
         scene.addObject(wallModel.get(),
-            glm::vec3(x, 0.05f, z),
+            glm::vec3(x, 0.1f, z), // Slightly raised
             glm::vec3(0.0f, wallRotation, 0.0f),
-            glm::vec3(0.014f, 0.048f, 0.014f));
+            glm::vec3(0.028f, 0.096f, 0.028f)); // Doubled from original tiny scale
     }
 
-    // COLUMNS
+    // COLUMNS - scaled up
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
-        float x = 2.8f * cos(angle);
-        float z = 2.8f * sin(angle);
+        float x = 5.6f * cos(angle); // Scaled from 2.8f
+        float z = 5.6f * sin(angle);
 
         scene.addObject(columnModel.get(),
             glm::vec3(x, 0.0f, z),
             glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(1.5f, 3.2f, 1.5f));
+            glm::vec3(3.0f, 6.4f, 3.0f)); // Scaled from 1.5f, 3.2f, 1.5f
     }
 
-    // DOOR FRAMES - These are the stone archways
+    // DOOR FRAMES - scaled up
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
         float x = roomRadius * 0.8f * cos(angle);
@@ -852,27 +852,27 @@ int main() {
         scene.addObject(doorFrameModel.get(),
             glm::vec3(x, 0.0f, z),
             glm::vec3(0.0f, rotationToFaceCenter, 0.0f),
-            glm::vec3(1.3f, 1.3f, 1.3f));
+            glm::vec3(2.6f, 2.6f, 2.6f)); // Scaled from 1.3f
     }
 
-    // PORTAL QUADS - These show the recursive portal effect (positioned in door openings)
+    // PORTAL QUADS - scaled up
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
         float x = roomRadius * 0.8f * cos(angle);
         float z = roomRadius * 0.8f * sin(angle);
         float rotationToFaceCenter = angle + glm::radians(90.0f);
 
-        // Position the quad deeper inside the door frame to avoid z-fighting
+        // Position the quad deeper inside the door frame
         glm::vec3 normal = glm::vec3(-cos(angle), 0.0f, -sin(angle));
-        glm::vec3 quadPos = glm::vec3(x, roomHeight * 0.01f, z) + normal * 0.3f; // Move deeper inward
+        glm::vec3 quadPos = glm::vec3(x, roomHeight * 0.01f, z) + normal * 0.6f; // Scaled offset
 
         scene.addObject(portalQuadModel.get(),
             quadPos,
             glm::vec3(0.0f, rotationToFaceCenter, 0.0f),
-            glm::vec3(0.8f, 1.2f, 1.0f)); // Slightly smaller to fit better
+            glm::vec3(2.4f, 3.4f, 2.4f)); // Scaled from 0.8f, 1.2f, 1.0f
     }
 
-    // BOOKSHELVES
+    // BOOKSHELVES - scaled up
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
         float x = roomRadius * 0.7f * cos(angle);
@@ -885,48 +885,48 @@ int main() {
 
         if (i % 2 == 0) {
             rotationToFaceCenter = angle + glm::radians(90.0f);
-            scale = glm::vec3(2.0f, 3.7f, 3.0f);
+            scale = glm::vec3(4.0f, 7.4f, 6.0f); // Scaled from 2.0f, 3.7f, 3.0f
         }
         else {
             rotationToFaceCenter = angle + glm::radians(270.0f);
-            scale = glm::vec3(1.2f, 3.7f, 1.4f);
+            scale = glm::vec3(2.4f, 7.4f, 2.8f); // Scaled from 1.2f, 3.7f, 1.4f
         }
 
         scene.addObject(shelfModel,
-            glm::vec3(x, 1.0f, z),
+            glm::vec3(x, 2.0f, z), // Scaled from 1.0f
             glm::vec3(0.0f, rotationToFaceCenter, 0.0f),
             scale);
     }
 
-    // FLOATING BOOKS - Enhanced magical animations
-    std::cout << "Setting up magical floating books..." << std::endl;
+    // FLOATING BOOKS - scaled up positions and sizes
+    std::cout << "Setting up magical floating books with 2x scaling..." << std::endl;
 
     // Central orbiting books
     for (int i = 0; i < 6; i++) {
         float angle = glm::radians(60.0f * static_cast<float>(i));
-        float x = 2.0f * cos(angle);
-        float z = 2.0f * sin(angle);
+        float x = 4.0f * cos(angle); // Scaled from 2.0f
+        float z = 4.0f * sin(angle);
 
         size_t bookIndex = scene.objects.size();
         scene.addObject(bookModel.get(),
-            glm::vec3(x, 2.0f, z),
+            glm::vec3(x, 4.0f, z), // Scaled from 2.0f
             glm::vec3(0.0f, angle, 0.0f),
-            glm::vec3(2.3f, 2.3f, 2.3f));
+            glm::vec3(4.6f, 4.6f, 4.6f)); // Scaled from 2.3f
 
         // Enhanced animations - vary by book
         switch (i % 3) {
         case 0: // Orbiting around center
-            scene.objects[bookIndex].setOrbiting(true, glm::vec3(0.0f, 2.0f, 0.0f), 2.0f, 0.4f);
+            scene.objects[bookIndex].setOrbiting(true, glm::vec3(0.0f, 4.0f, 0.0f), 4.0f, 0.4f);
             scene.objects[bookIndex].setRotating(true, 0.6f);
             break;
         case 1: // Floating in place
-            scene.objects[bookIndex].setFloating(true, 0.5f, 1.0f);
+            scene.objects[bookIndex].setFloating(true, 1.0f, 1.0f); // Scaled amplitude
             scene.objects[bookIndex].setRotating(true, 0.8f);
             break;
         case 2: // Pulsing + rotating + floating
             scene.objects[bookIndex].setPulsing(true, 0.12f, 1.8f);
             scene.objects[bookIndex].setRotating(true, 0.5f);
-            scene.objects[bookIndex].setFloating(true, 0.3f, 0.7f);
+            scene.objects[bookIndex].setFloating(true, 0.6f, 0.7f); // Scaled amplitude
             break;
         }
     }
@@ -934,25 +934,25 @@ int main() {
     // Books orbiting around columns
     for (int col = 0; col < 4; col++) {
         float colAngle = glm::radians(90.0f * static_cast<float>(col));
-        glm::vec3 columnPos = glm::vec3(3.0f * cos(colAngle), 2.0f, 3.0f * sin(colAngle));
+        glm::vec3 columnPos = glm::vec3(6.0f * cos(colAngle), 4.0f, 6.0f * sin(colAngle)); // Scaled
 
         for (int book = 0; book < 2; book++) {
             size_t bookIndex = scene.objects.size();
-            glm::vec3 bookStartPos = columnPos + glm::vec3(1.5f, book * 1.0f, 0.0f);
+            glm::vec3 bookStartPos = columnPos + glm::vec3(3.0f, book * 2.0f, 0.0f); // Scaled
 
             scene.addObject(bookModel.get(),
                 bookStartPos,
                 glm::vec3(0.0f, 0.0f, 0.0f),
-                glm::vec3(0.9f, 0.9f, 0.9f));
+                glm::vec3(1.8f, 1.8f, 1.8f)); // Scaled from 0.9f
 
             scene.objects[bookIndex].setOrbiting(true,
-                columnPos + glm::vec3(0.0f, book * 1.0f, 0.0f),
-                1.8f,
+                columnPos + glm::vec3(0.0f, book * 2.0f, 0.0f), // Scaled
+                3.6f, // Scaled from 1.8f
                 0.3f + book * 0.15f);
             scene.objects[bookIndex].setRotating(true, 1.2f);
 
             if (book % 2 == 0) {
-                scene.objects[bookIndex].setFloating(true, 0.2f, 1.5f);
+                scene.objects[bookIndex].setFloating(true, 0.4f, 1.5f); // Scaled amplitude
             }
         }
     }
@@ -960,17 +960,17 @@ int main() {
     // High-altitude books
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
-        float x = 5.0f * cos(angle);
-        float z = 5.0f * sin(angle);
+        float x = 10.0f * cos(angle); // Scaled from 5.0f
+        float z = 10.0f * sin(angle);
 
         size_t bookIndex = scene.objects.size();
         scene.addObject(bookModel.get(),
-            glm::vec3(x, 4.5f, z),
+            glm::vec3(x, 9.0f, z), // Scaled from 4.5f
             glm::vec3(glm::radians(15.0f), angle, 0.0f),
-            glm::vec3(1.1f, 1.1f, 1.1f));
+            glm::vec3(2.2f, 2.2f, 2.2f)); // Scaled from 1.1f
 
-        scene.objects[bookIndex].setOrbiting(true, glm::vec3(0.0f, 4.5f, 0.0f), 5.0f, 0.15f);
-        scene.objects[bookIndex].setFloating(true, 0.3f, 0.8f);
+        scene.objects[bookIndex].setOrbiting(true, glm::vec3(0.0f, 9.0f, 0.0f), 10.0f, 0.15f); // Scaled
+        scene.objects[bookIndex].setFloating(true, 0.6f, 0.8f); // Scaled amplitude
         scene.objects[bookIndex].setRotating(true, 0.3f);
     }
 

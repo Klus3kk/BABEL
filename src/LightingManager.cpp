@@ -17,38 +17,38 @@ void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
     pointLights.clear();
     directionalLights.clear();
 
-    std::cout << "Setting up DARK LIBRARY lighting with torches..." << std::endl;
+    std::cout << "Setting up DARK LIBRARY lighting with torches for radius=" << roomRadius << "..." << std::endl;
 
     // DARK ATMOSPHERE SETTINGS
     ambientColor = glm::vec3(0.02f, 0.01f, 0.05f); // Very dark purple
     ambientStrength = 0.05f; // Minimal ambient light
 
-    // 1. Central lamp (dimmed)
+    // 1. Central lamp (dimmed) - scaled up
     PointLight dimCentralLight(
-        glm::vec3(0.0f, roomHeight + 0.5f, 0.0f),
+        glm::vec3(0.0f, roomHeight + 1.0f, 0.0f), // Scaled offset
         glm::vec3(0.3f, 0.2f, 0.1f), // Dim warm glow
-        0.8f, // Much lower intensity
-        1.0f, 0.09f, 0.032f
+        1.6f, // Scaled intensity for larger room
+        1.0f, 0.045f, 0.016f // Adjusted attenuation for larger distances
     );
     dimCentralLight.flickering = true;
     dimCentralLight.flickerSpeed = 3.0f;
     dimCentralLight.flickerIntensity = 0.3f;
     addPointLight(dimCentralLight);
 
-    // 2. WALL TORCHES - Match the wall torch positions
+    // 2. WALL TORCHES - Match the wall torch positions (scaled)
     for (int i = 0; i < 8; i++) {
         float angle = glm::radians(45.0f * static_cast<float>(i));
         glm::vec3 torchLightPos = glm::vec3(
             roomRadius * 0.9f * cos(angle),
-            2.3f, // Slightly above torch model
+            4.6f, // Scaled from 2.3f
             roomRadius * 0.9f * sin(angle)
         );
 
         PointLight wallTorch(
             torchLightPos,
             glm::vec3(1.0f, 0.4f, 0.05f), // Orange flame color
-            1.8f, // Medium intensity for wall torches
-            1.0f, 0.14f, 0.07f
+            3.6f, // Scaled intensity from 1.8f
+            1.0f, 0.07f, 0.035f // Adjusted attenuation for larger room
         );
         wallTorch.flickering = true;
         wallTorch.flickerSpeed = 8.0f + (i * 1.5f);
@@ -56,24 +56,24 @@ void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
         addPointLight(wallTorch);
     }
 
-    // 3. COLUMN TORCHES - Two per column (matching the model positions)
+    // 3. COLUMN TORCHES - Two per column (scaled)
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
-        glm::vec3 columnCenter = glm::vec3(3.0f * cos(angle), 0.0f, 3.0f * sin(angle));
-        float offsetDistance = 1.0f;
+        glm::vec3 columnCenter = glm::vec3(6.0f * cos(angle), 0.0f, 6.0f * sin(angle)); // Scaled from 3.0f
+        float offsetDistance = 2.0f; // Scaled from 1.0f
 
         // First torch on each column
         glm::vec3 torchLight1 = glm::vec3(
             columnCenter.x + offsetDistance * cos(angle),
-            2.9f, // Slightly above torch model
+            5.8f, // Scaled from 2.9f
             columnCenter.z + offsetDistance * sin(angle)
         );
 
         PointLight columnTorch1(
             torchLight1,
             glm::vec3(1.0f, 0.3f, 0.0f), // Deep orange-red
-            2.0f, // Stronger for column torches
-            1.0f, 0.22f, 0.20f
+            4.0f, // Scaled from 2.0f
+            1.0f, 0.11f, 0.10f // Adjusted attenuation
         );
         columnTorch1.flickering = true;
         columnTorch1.flickerSpeed = 6.0f + (i * 2.0f);
@@ -83,67 +83,67 @@ void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
         // Second torch on opposite side of column
         glm::vec3 torchLight2 = glm::vec3(
             columnCenter.x - offsetDistance * cos(angle),
-            2.9f,
+            5.8f,
             columnCenter.z - offsetDistance * sin(angle)
         );
 
         PointLight columnTorch2(
             torchLight2,
             glm::vec3(1.0f, 0.3f, 0.0f), // Deep orange-red
-            2.0f,
-            1.0f, 0.22f, 0.20f
+            4.0f, // Scaled from 2.0f
+            1.0f, 0.11f, 0.10f
         );
         columnTorch2.flickering = true;
-        columnTorch2.flickerSpeed = 7.0f + (i * 1.8f); // Slightly different speed
+        columnTorch2.flickerSpeed = 7.0f + (i * 1.8f);
         columnTorch2.flickerIntensity = 0.6f;
         addPointLight(columnTorch2);
     }
 
-    // 4. BOOKSHELF READING LIGHTS - Match the bookshelf torch positions
+    // 4. BOOKSHELF READING LIGHTS - Match the bookshelf torch positions (scaled)
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
         float x = roomRadius * 0.7f * cos(angle);
         float z = roomRadius * 0.7f * sin(angle);
 
         PointLight readingLight(
-            glm::vec3(x, 4.3f, z), // Above bookshelf torch
+            glm::vec3(x, 8.6f, z), // Scaled from 4.3f
             glm::vec3(0.8f, 0.6f, 0.3f), // Warm reading light
-            1.2f, // Moderate intensity for reading
-            1.0f, 0.35f, 0.44f // Closer range
+            2.4f, // Scaled from 1.2f
+            1.0f, 0.175f, 0.22f // Adjusted attenuation
         );
         readingLight.flickering = true;
         readingLight.flickerSpeed = 4.0f + (i * 1.0f);
-        readingLight.flickerIntensity = 0.3f; // Less flicker for reading
+        readingLight.flickerIntensity = 0.3f;
         addPointLight(readingLight);
     }
 
-    // 5. MYSTICAL PORTAL LIGHTS - Keep existing
+    // 5. MYSTICAL PORTAL LIGHTS - scaled
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
-        glm::vec3 portalPos = glm::vec3(roomRadius * 0.8f * cos(angle), 1.0f, roomRadius * 0.8f * sin(angle));
+        glm::vec3 portalPos = glm::vec3(roomRadius * 0.8f * cos(angle), 2.0f, roomRadius * 0.8f * sin(angle)); // Scaled
 
         PointLight portalLight(
             portalPos,
             glm::vec3(0.1f, 0.05f, 0.4f), // Deep blue mystical
-            0.6f, // Very dim
-            1.0f, 0.35f, 0.44f
+            1.2f, // Scaled from 0.6f
+            1.0f, 0.175f, 0.22f // Adjusted attenuation
         );
         portalLight.moving = true;
         portalLight.moveSpeed = 0.5f;
-        portalLight.moveRadius = 0.3f;
+        portalLight.moveRadius = 0.6f; // Scaled from 0.3f
         portalLight.moveCenter = portalPos;
         addPointLight(portalLight);
     }
 
-    // 6. Subtle moonlight
+    // 6. Subtle moonlight (intensity scaled for larger room)
     DirectionalLight dimMoonlight(
         glm::vec3(0.3f, -1.0f, 0.2f),
         glm::vec3(0.05f, 0.05f, 0.1f),
-        0.1f
+        0.2f // Scaled from 0.1f
     );
     addDirectionalLight(dimMoonlight);
 
-    std::cout << "DARK LIBRARY setup complete!" << std::endl;
+    std::cout << "Library setup complete!" << std::endl;
     std::cout << "Total lights: " << pointLights.size() << std::endl;
 }
 

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <GLFW/glfw3.h>
 
 // Static member definitions
 bool DebugSystem::debugMode = false;
@@ -42,16 +43,20 @@ void DebugSystem::updatePerformanceStats(float deltaTime) {
     frameTime = deltaTime;
     frameCount++;
 
-    float currentTime = glfwGetTime();
+    float currentTime = static_cast<float>(glfwGetTime());
     if (currentTime - lastTime >= 1.0f) {
         fps = frameCount / (currentTime - lastTime);
         frameCount = 0;
         lastTime = currentTime;
+
+        if (showPerformanceStats && debugMode) {
+            std::cout << "FPS: " << fps << " | Frame Time: " << frameTime * 1000.0f << "ms" << std::endl;
+        }
     }
 }
 
 void DebugSystem::printCameraInfo(const glm::vec3& pos, const glm::vec3& front, float yaw, float pitch) {
-    if (!showCameraInfo) return;
+    if (!showCameraInfo || !debugMode) return;
 
     std::cout << "\n=== CAMERA INFO ===" << std::endl;
     std::cout << std::fixed << std::setprecision(2);
@@ -63,7 +68,7 @@ void DebugSystem::printCameraInfo(const glm::vec3& pos, const glm::vec3& front, 
 }
 
 void DebugSystem::printLightingInfo(const LightingManager& lightingManager) {
-    if (!showLightingInfo) return;
+    if (!showLightingInfo || !debugMode) return;
 
     std::cout << "\n=== LIGHTING INFO ===" << std::endl;
     std::cout << "Point lights: " << lightingManager.pointLights.size() << std::endl;
@@ -95,17 +100,16 @@ void DebugSystem::printSceneInfo(const Scene& scene,
     const std::unique_ptr<Model>& ceilingModel,
     const std::unique_ptr<Model>& wallModel,
     const std::unique_ptr<Model>& torchModel) {
-    if (!showSceneInfo) return;
+    if (!showSceneInfo || !debugMode) return;
 
     std::cout << "\n=== SCENE INFO ===" << std::endl;
     std::cout << "Total objects: " << scene.objects.size() << std::endl;
 
     // Count object types
-    int books = 0, shelves = 0, portals = 0, torches = 0, animated = 0;
+    int books = 0, shelves = 0, torches = 0, animated = 0;
     for (const auto& obj : scene.objects) {
         if (obj.model == bookModel.get()) books++;
         else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) shelves++;
-        else if (obj.model == portalModel.get()) portals++;
         else if (obj.model == torchModel.get()) torches++;
 
         if (obj.rotating || obj.floating || obj.orbiting || obj.pulsing) animated++;
@@ -114,9 +118,8 @@ void DebugSystem::printSceneInfo(const Scene& scene,
     std::cout << "Object breakdown:" << std::endl;
     std::cout << "  - Books: " << books << std::endl;
     std::cout << "  - Bookshelves: " << shelves << std::endl;
-    std::cout << "  - Portals: " << portals << std::endl;
     std::cout << "  - Torches: " << torches << std::endl;
-    std::cout << "  - Other: " << (scene.objects.size() - books - shelves - portals - torches) << std::endl;
+    std::cout << "  - Other: " << (scene.objects.size() - books - shelves - torches) << std::endl;
     std::cout << "Animated objects: " << animated << std::endl;
 
     std::cout << "==================" << std::endl;
@@ -129,9 +132,8 @@ void DebugSystem::printOpenGLInfo() {
     std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
-    GLint maxTextureUnits, maxLights, maxVertexAttribs;
+    GLint maxTextureUnits, maxVertexAttribs;
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxTextureUnits);
-    glGetIntegerv(GL_MAX_LIGHTS, &maxLights);
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertexAttribs);
 
     std::cout << "Max texture units: " << maxTextureUnits << std::endl;
@@ -154,11 +156,36 @@ void DebugSystem::checkOpenGLErrors(const std::string& operation) {
     }
 }
 
-void DebugSystem::togglePerformanceStats() { showPerformanceStats = !showPerformanceStats; }
-void DebugSystem::togglePortalInfo() { showPortalInfo = !showPortalInfo; }
-void DebugSystem::toggleLightingInfo() { showLightingInfo = !showLightingInfo; }
-void DebugSystem::toggleSceneInfo() { showSceneInfo = !showSceneInfo; }
-void DebugSystem::toggleCameraInfo() { showCameraInfo = !showCameraInfo; }
+void DebugSystem::printMemoryUsage() {
+    std::cout << "\n=== MEMORY USAGE ===" << std::endl;
+    std::cout << "Basic memory tracking not implemented" << std::endl;
+    std::cout << "====================" << std::endl;
+}
+
+void DebugSystem::togglePerformanceStats() {
+    showPerformanceStats = !showPerformanceStats;
+    std::cout << "Performance stats: " << (showPerformanceStats ? "ON" : "OFF") << std::endl;
+}
+
+void DebugSystem::togglePortalInfo() {
+    showPortalInfo = !showPortalInfo;
+    std::cout << "Portal info: " << (showPortalInfo ? "ON" : "OFF") << std::endl;
+}
+
+void DebugSystem::toggleLightingInfo() {
+    showLightingInfo = !showLightingInfo;
+    std::cout << "Lighting info: " << (showLightingInfo ? "ON" : "OFF") << std::endl;
+}
+
+void DebugSystem::toggleSceneInfo() {
+    showSceneInfo = !showSceneInfo;
+    std::cout << "Scene info: " << (showSceneInfo ? "ON" : "OFF") << std::endl;
+}
+
+void DebugSystem::toggleCameraInfo() {
+    showCameraInfo = !showCameraInfo;
+    std::cout << "Camera info: " << (showCameraInfo ? "ON" : "OFF") << std::endl;
+}
 
 void DebugSystem::printAllDebugInfo(const glm::vec3& cameraPos, const glm::vec3& cameraFront,
     float yaw, float pitch, float roomRadius, float roomHeight, int numSides,
@@ -175,13 +202,23 @@ void DebugSystem::printAllDebugInfo(const glm::vec3& cameraPos, const glm::vec3&
     const std::unique_ptr<Model>& wallModel,
     const std::unique_ptr<Model>& torchModel) {
 
+    if (!debugMode) return;
+
     std::cout << "\n" << std::string(50, '=') << std::endl;
     std::cout << "         BABEL DEBUG INFORMATION" << std::endl;
     std::cout << std::string(50, '=') << std::endl;
 
     // Room info
     std::cout << "\n=== ROOM CONFIGURATION ===" << std::endl;
-    std::cout << "Radius: " << roomRadius << ", Height: " << roomHeight << ", Sides: " << numSides << std::endl;
+    std::cout << "Radius: " << roomRadius << ", Height: " << roomHeight << std::endl;
+
+    // Portal info
+    if (showPortalInfo) {
+        std::cout << "\n=== PORTAL INFO ===" << std::endl;
+        std::cout << "Portals: " << portalSystem.getPortalCount() << std::endl;
+        std::cout << "Active: " << (portalSystem.areActive() ? "YES" : "NO") << std::endl;
+        std::cout << "===================" << std::endl;
+    }
 
     // Debug info based on toggle states
     printCameraInfo(cameraPos, cameraFront, yaw, pitch);

@@ -9,19 +9,18 @@
 
 struct Portal {
     glm::vec3 position;
-    glm::vec3 normal;        // Portal face direction
-    glm::vec3 up;            // Portal up direction
-    glm::vec3 right;         // Portal right direction
+    glm::vec3 normal;
+    glm::vec3 up;
+    glm::vec3 right;
 
     // Portal dimensions
-    float width = 2.0f;
-    float height = 3.0f;
+    float width = 3.0f;
+    float height = 6.0f;
 
     // Destination portal connection
     int destinationPortalId = -1;
-    glm::vec3 destinationOffset = glm::vec3(0, 0, 30); // Default offset if no destination
 
-    // Render targets for recursive rendering
+    // Render targets for portal views
     GLuint framebuffer = 0;
     GLuint colorTexture = 0;
     GLuint depthTexture = 0;
@@ -31,10 +30,10 @@ struct Portal {
     float distanceFromPlayer = 0.0f;
     int portalId = 0;
 
-    // Portal geometry for stencil testing
-    GLuint stencilVAO = 0;
-    GLuint stencilVBO = 0;
-    GLuint stencilEBO = 0;
+    // Portal geometry for rendering
+    GLuint portalVAO = 0;
+    GLuint portalVBO = 0;
+    GLuint portalEBO = 0;
 
     Portal() = default;
     Portal(const glm::vec3& pos, const glm::vec3& norm, int id)
@@ -57,8 +56,9 @@ struct RoomVariation {
 class PortalSystem {
 private:
     std::vector<Portal> portals;
-    int textureSize = 512;
-    int maxRecursionDepth = 4;
+    int textureSize = 512;  // Optimized for performance
+    int maxRecursionDepth = 3;
+    bool enabled = true;
 
     std::vector<RoomVariation> roomVariations;
 
@@ -67,62 +67,46 @@ private:
     void cleanupPortalGeometry(Portal& portal);
 
     // Portal transformation math
-    glm::mat4 calculatePortalTransformation(const Portal& fromPortal, const Portal& toPortal,
-        const glm::mat4& originalView) const;
-
-    // Oblique frustum clipping (from CS148 tutorial)
-    glm::mat4 createObliqueProjection(const glm::mat4& projection, const glm::vec4& clipPlane) const;
-
-    // Portal plane equation
-    glm::vec4 getPortalPlane(const Portal& portal) const;
-
-    // Check if point is in front of portal
-    bool isInFrontOfPortal(const Portal& portal, const glm::vec3& point) const;
-
-    // Render portal stencil mask
-    void renderPortalStencil(const Portal& portal, const glm::mat4& view,
-        const glm::mat4& projection, int stencilValue) const;
+    glm::mat4 calculatePortalViewMatrix(const Portal& fromPortal, const Portal& toPortal,
+        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const;
 
 public:
     PortalSystem();
     ~PortalSystem();
 
     // Initialization
-    void initialize(float roomRadius, float roomHeight);
+    void initialize();
     void cleanup();
 
     // Portal management
-    void addPortal(const glm::vec3& position, const glm::vec3& normal,
-        const glm::vec3& destinationOffset = glm::vec3(0, 0, 30));
+    void addPortal(const glm::vec3& position, const glm::vec3& normal);
     void connectPortals(int portal1Id, int portal2Id);
 
-    // Rendering
-    void renderPortalViews(const std::function<void(const glm::mat4&, const glm::mat4&, int, const RoomVariation&)>& renderScene,
-        const glm::vec3& playerPos, const glm::vec3& playerDir,
+    // State management - THESE WERE MISSING
+    void setEnabled(bool enable) { enabled = enable; }
+    bool isEnabled() const { return enabled; }
+    bool areActive() const { return enabled && !portals.empty(); }
+
+    // Main rendering functions
+    void renderPortalViews(const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
+        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
         const glm::mat4& projection);
 
-    void renderRecursivePortals(const std::function<void(const glm::mat4&, const glm::mat4&, int, const RoomVariation&)>& renderScene,
-        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
-        const glm::mat4& view, const glm::mat4& projection, int recursionLevel = 0);
+    void renderPortalSurfaces(Shader& portalShader, const glm::mat4& view, const glm::mat4& projection,
+        const glm::vec3& cameraPos, float time);
 
-    // Portal texture binding for shader
-    void bindPortalTexture(int portalIndex, Shader& shader) const;
+    // Player interaction
+    bool checkPortalCollision(const glm::vec3& oldPos, const glm::vec3& newPos, glm::vec3& teleportPos) const;
 
     // Utility functions
     void updateDistances(const glm::vec3& playerPos);
-    void setActive(bool active);
-    void setQuality(int size);
+    void setQuality(int textureResolution);
     void setRecursionDepth(int depth);
 
     // Getters
     size_t getPortalCount() const { return portals.size(); }
-    bool areActive() const { return !portals.empty() && portals[0].active; }
     const Portal& getPortal(int index) const { return portals[index]; }
 
     // Debug
     void printDebugInfo() const;
-
-    // Player interaction
-    bool checkPortalCollision(const glm::vec3& oldPos, const glm::vec3& newPos, glm::vec3& teleportPos) const;
-    glm::vec3 transformThroughPortal(const Portal& fromPortal, const Portal& toPortal, const glm::vec3& position) const;
 };

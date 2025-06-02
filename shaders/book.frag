@@ -21,9 +21,9 @@ struct DirectionalLight {
     float intensity;
 };
 
-// Maximum number of lights
-#define MAX_POINT_LIGHTS 8
-#define MAX_DIR_LIGHTS 2
+// Maximum number of lights (increased for better lighting)
+#define MAX_POINT_LIGHTS 32
+#define MAX_DIR_LIGHTS 4
 
 uniform PointLight pointLights[MAX_POINT_LIGHTS];
 uniform DirectionalLight dirLights[MAX_DIR_LIGHTS];
@@ -36,92 +36,163 @@ uniform sampler2D baseColorMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D metallicMap;
 
-// Ambient lighting
+// Enhanced ambient lighting
 uniform vec3 ambientColor;
 uniform float ambientStrength;
 
-// Infinite library uniforms
+// Enhanced infinite library uniforms
 uniform vec3 roomColorTint = vec3(1.0, 1.0, 1.0);
 uniform float roomScale = 1.0;
-uniform vec3 fogColor = vec3(0.01, 0.005, 0.02);
-uniform float fogDensity = 0.02;
+uniform vec3 fogColor = vec3(0.02, 0.015, 0.04);
+uniform float fogDensity = 0.015;
+uniform float time = 0.0;
 
-// Calculate distance-based fog
-float calculateFog(vec3 fragPos, vec3 viewPos) {
+// Enhanced fog calculation with depth and height
+float calculateAdvancedFog(vec3 fragPos, vec3 viewPos) {
     float distance = length(fragPos - viewPos);
-    float fogFactor = exp(-fogDensity * distance);
-    return clamp(fogFactor, 0.0, 1.0);
+    
+    // Distance-based fog
+    float distanceFog = exp(-fogDensity * distance);
+    
+    // Height-based fog (thicker at lower elevations)
+    float heightFactor = max(0.0, (fragPos.y + 2.0) / 8.0);
+    float heightFog = mix(0.3, 1.0, heightFactor);
+    
+    // Combine both fog effects
+    float combinedFog = distanceFog * heightFog;
+    
+    return clamp(combinedFog, 0.1, 1.0);
 }
 
-// Calculate point light contribution
-vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, vec3 albedo, float roughness, float metallic) {
+// Enhanced point light calculation with improved attenuation
+vec3 calcEnhancedPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, 
+                           vec3 albedo, float roughness, float metallic) {
     vec3 lightDir = normalize(light.position - fragPos);
-    
-    // Distance attenuation
     float distance = length(light.position - fragPos);
-    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
     
-    // Diffuse component
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diff * light.color * light.intensity;
+    // Enhanced attenuation with smoother falloff
+    float attenuation = light.intensity / (light.constant + light.linear * distance + 
+                                         light.quadratic * (distance * distance));
     
-    // Specular component (Blinn-Phong)
+    // Improved diffuse shading (Lambert)
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = NdotL * light.color;
+    
+    // Enhanced specular shading (Blinn-Phong with roughness)
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0 * (1.0 - roughness));
-    vec3 specular = spec * light.color * light.intensity * metallic;
+    float NdotH = max(dot(normal, halfwayDir), 0.0);
+    float specularPower = mix(8.0, 128.0, 1.0 - roughness);
+    float spec = pow(NdotH, specularPower);
     
-    return (diffuse + specular) * attenuation * albedo;
+    // Fresnel approximation for more realistic metallic reflections
+    float fresnel = metallic + (1.0 - metallic) * pow(1.0 - max(dot(halfwayDir, lightDir), 0.0), 5.0);
+    vec3 specular = spec * light.color * fresnel;
+    
+    // Energy conservation
+    vec3 kS = specular;
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+    
+    return (kD * diffuse + specular) * attenuation * albedo;
 }
 
-// Calculate directional light contribution
-vec3 calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, vec3 albedo, float roughness, float metallic) {
+// Enhanced directional light calculation
+vec3 calcEnhancedDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, 
+                         vec3 albedo, float roughness, float metallic) {
     vec3 lightDir = normalize(-light.direction);
     
-    // Diffuse component
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diff * light.color * light.intensity;
+    // Diffuse shading
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = NdotL * light.color * light.intensity;
     
-    // Specular component
+    // Specular shading with roughness
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0 * (1.0 - roughness));
-    vec3 specular = spec * light.color * light.intensity * metallic;
+    float NdotH = max(dot(normal, halfwayDir), 0.0);
+    float specularPower = mix(8.0, 128.0, 1.0 - roughness);
+    float spec = pow(NdotH, specularPower);
     
-    return (diffuse + specular) * albedo;
+    // Fresnel for metallics
+    float fresnel = metallic + (1.0 - metallic) * pow(1.0 - max(dot(halfwayDir, lightDir), 0.0), 5.0);
+    vec3 specular = spec * light.color * light.intensity * fresnel;
+    
+    // Energy conservation
+    vec3 kS = specular;
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+    
+    return (kD * diffuse + specular) * albedo;
+}
+
+// Add magical glow effect for floating books
+vec3 addMagicalAura(vec3 color, vec3 fragPos, vec3 viewPos) {
+    float distanceToViewer = length(fragPos - viewPos);
+    
+    // Subtle magical glow for objects close to camera
+    if (distanceToViewer < 15.0) {
+        float glowIntensity = (15.0 - distanceToViewer) / 15.0;
+        glowIntensity *= 0.1; // Keep it subtle
+        
+        // Magical color shift based on time and position
+        vec3 magicalColor = vec3(
+            0.8 + 0.2 * sin(time * 2.0 + fragPos.x),
+            0.6 + 0.4 * sin(time * 1.5 + fragPos.y),
+            1.0 + 0.2 * sin(time * 3.0 + fragPos.z)
+        );
+        
+        color += magicalColor * glowIntensity;
+    }
+    
+    return color;
 }
 
 void main() {
-    // Sample material textures
+    // Sample material textures with enhanced filtering
     vec3 albedo = texture(baseColorMap, TexCoord).rgb;
     float roughness = texture(roughnessMap, TexCoord).r;
     float metallic = texture(metallicMap, TexCoord).r;
     
-    // Apply room color tint to albedo
+    // Apply room color tint for variety
     albedo *= roomColorTint;
     
     // Normalize vectors
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
     
-    // Start with ambient lighting (apply room tint)
-    vec3 result = ambientColor * ambientStrength * albedo;
+    // Enhanced ambient lighting with color variation
+    vec3 ambient = ambientColor * ambientStrength * albedo;
+    
+    // Add subtle ambient occlusion effect
+    float ao = 0.8 + 0.2 * max(dot(norm, vec3(0.0, 1.0, 0.0)), 0.0);
+    ambient *= ao;
+    
+    // Start with ambient contribution
+    vec3 result = ambient;
     
     // Add contribution from all point lights
     for(int i = 0; i < numPointLights && i < MAX_POINT_LIGHTS; i++) {
-        result += calcPointLight(pointLights[i], norm, FragPos, viewDir, albedo, roughness, metallic);
+        result += calcEnhancedPointLight(pointLights[i], norm, FragPos, viewDir, albedo, roughness, metallic);
     }
     
     // Add contribution from all directional lights
     for(int i = 0; i < numDirLights && i < MAX_DIR_LIGHTS; i++) {
-        result += calcDirLight(dirLights[i], norm, viewDir, albedo, roughness, metallic);
+        result += calcEnhancedDirLight(dirLights[i], norm, viewDir, albedo, roughness, metallic);
     }
     
-    // Apply fog for infinite depth effect
-    float fogFactor = calculateFog(FragPos, viewPos);
+    // Add magical aura for floating objects
+    result = addMagicalAura(result, FragPos, viewPos);
+    
+    // Apply enhanced fog for infinite depth effect
+    float fogFactor = calculateAdvancedFog(FragPos, viewPos);
     result = mix(fogColor, result, fogFactor);
     
-    // Tone mapping and gamma correction
-    result = result / (result + vec3(1.0));
+    // Enhanced tone mapping with better color preservation
+    result = result / (result + vec3(1.2));
+    
+    // Improved gamma correction
     result = pow(result, vec3(1.0/2.2));
+    
+    // Subtle color grading for warmer library atmosphere
+    result.r *= 1.05; // Slightly warmer reds
+    result.g *= 0.98; // Slightly reduce greens
+    result.b *= 1.02; // Slightly enhance blues
     
     FragColor = vec4(result, 1.0);
 }

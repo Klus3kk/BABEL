@@ -1,4 +1,4 @@
-#include "LightingManager.hpp"
+﻿#include "LightingManager.hpp"
 #include <cmath>
 #include <iostream>
 #include <algorithm>
@@ -11,158 +11,205 @@ void LightingManager::addDirectionalLight(const DirectionalLight& light) {
     directionalLights.push_back(light);
 }
 
-
 void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
     // Clear existing lights
     pointLights.clear();
     directionalLights.clear();
 
-    std::cout << "Setting up DARK LIBRARY lighting with torches..." << std::endl;
+    std::cout << "🕯️ Setting up enhanced library lighting system..." << std::endl;
 
-    // DARK ATMOSPHERE SETTINGS
-    ambientColor = glm::vec3(0.02f, 0.01f, 0.05f); // Very dark purple
-    ambientStrength = 0.05f; // Minimal ambient light
+    // ATMOSPHERIC AMBIENT LIGHTING
+    ambientColor = glm::vec3(0.08f, 0.06f, 0.12f); // Warm purple ambient
+    ambientStrength = 0.15f; // Sufficient for portal visibility
 
-    // 1. Central lamp (dimmed)
-    PointLight dimCentralLight(
-        glm::vec3(0.0f, roomHeight + 0.5f, 0.0f),
-        glm::vec3(0.3f, 0.2f, 0.1f), // Dim warm glow
-        0.8f, // Much lower intensity
-        1.0f, 0.09f, 0.032f
+    // 1. CENTRAL MYSTICAL LAMP - Primary light source
+    PointLight centralLamp(
+        glm::vec3(0.0f, roomHeight + 0.8f, 0.0f),
+        glm::vec3(1.0f, 0.9f, 0.7f), // Warm golden light
+        3.5f, // Strong central illumination
+        1.0f, 0.045f, 0.0075f // Wide spread
     );
-    dimCentralLight.flickering = true;
-    dimCentralLight.flickerSpeed = 3.0f;
-    dimCentralLight.flickerIntensity = 0.3f;
-    addPointLight(dimCentralLight);
+    centralLamp.flickering = true;
+    centralLamp.flickerSpeed = 2.0f;
+    centralLamp.flickerIntensity = 0.15f; // Gentle flickering
+    addPointLight(centralLamp);
 
-    // 2. WALL TORCHES - Match the wall torch positions
+    // 2. WALL TORCHES - Perimeter atmospheric lighting (8 torches)
+    std::cout << "🔥 Installing wall torches..." << std::endl;
     for (int i = 0; i < 8; i++) {
         float angle = glm::radians(45.0f * static_cast<float>(i));
-        glm::vec3 torchLightPos = glm::vec3(
-            roomRadius * 0.9f * cos(angle),
-            2.3f, // Slightly above torch model
-            roomRadius * 0.9f * sin(angle)
+        glm::vec3 torchPosition = glm::vec3(
+            roomRadius * 0.92f * cos(angle),
+            2.0f, // Match torch model height
+            roomRadius * 0.92f * sin(angle)
         );
 
         PointLight wallTorch(
-            torchLightPos,
-            glm::vec3(1.0f, 0.4f, 0.05f), // Orange flame color
-            1.8f, // Medium intensity for wall torches
-            1.0f, 0.14f, 0.07f
+            torchPosition,
+            glm::vec3(1.0f, 0.5f, 0.1f), // Orange flame color
+            2.2f, // Medium intensity
+            1.0f, 0.22f, 0.20f // Medium range
         );
         wallTorch.flickering = true;
-        wallTorch.flickerSpeed = 8.0f + (i * 1.5f);
-        wallTorch.flickerIntensity = 0.5f;
+        wallTorch.flickerSpeed = 6.0f + (i * 0.8f); // Varied flicker speeds
+        wallTorch.flickerIntensity = 0.4f + (i % 3) * 0.1f; // Varied intensities
         addPointLight(wallTorch);
     }
 
-    // 3. COLUMN TORCHES - Two per column (matching the model positions)
+    // 3. COLUMN TORCHES - Strategic placement (8 total, 2 per column)
+    std::cout << "🏛️ Setting up column torches..." << std::endl;
     for (int i = 0; i < 4; i++) {
-        float angle = glm::radians(90.0f * static_cast<float>(i));
-        glm::vec3 columnCenter = glm::vec3(3.0f * cos(angle), 0.0f, 3.0f * sin(angle));
-        float offsetDistance = 1.0f;
+        float columnAngle = glm::radians(90.0f * static_cast<float>(i));
+        glm::vec3 columnCenter = glm::vec3(3.2f * cos(columnAngle), 0.0f, 3.2f * sin(columnAngle));
 
-        // First torch on each column
-        glm::vec3 torchLight1 = glm::vec3(
-            columnCenter.x + offsetDistance * cos(angle),
-            2.9f, // Slightly above torch model
-            columnCenter.z + offsetDistance * sin(angle)
-        );
+        // Two torches per column at different heights and positions
+        for (int j = 0; j < 2; j++) {
+            float offsetAngle = columnAngle + (j == 0 ? glm::radians(45.0f) : glm::radians(-45.0f));
+            glm::vec3 torchPosition = columnCenter + glm::vec3(
+                1.2f * cos(offsetAngle),
+                2.8f + j * 0.5f, // Staggered heights
+                1.2f * sin(offsetAngle)
+            );
 
-        PointLight columnTorch1(
-            torchLight1,
-            glm::vec3(1.0f, 0.3f, 0.0f), // Deep orange-red
-            2.0f, // Stronger for column torches
-            1.0f, 0.22f, 0.20f
-        );
-        columnTorch1.flickering = true;
-        columnTorch1.flickerSpeed = 6.0f + (i * 2.0f);
-        columnTorch1.flickerIntensity = 0.6f;
-        addPointLight(columnTorch1);
-
-        // Second torch on opposite side of column
-        glm::vec3 torchLight2 = glm::vec3(
-            columnCenter.x - offsetDistance * cos(angle),
-            2.9f,
-            columnCenter.z - offsetDistance * sin(angle)
-        );
-
-        PointLight columnTorch2(
-            torchLight2,
-            glm::vec3(1.0f, 0.3f, 0.0f), // Deep orange-red
-            2.0f,
-            1.0f, 0.22f, 0.20f
-        );
-        columnTorch2.flickering = true;
-        columnTorch2.flickerSpeed = 7.0f + (i * 1.8f); // Slightly different speed
-        columnTorch2.flickerIntensity = 0.6f;
-        addPointLight(columnTorch2);
+            PointLight columnTorch(
+                torchPosition,
+                glm::vec3(1.0f, 0.4f, 0.05f), // Deep orange-red
+                2.5f, // Stronger for dramatic effect
+                1.0f, 0.14f, 0.07f // Focused range
+            );
+            columnTorch.flickering = true;
+            columnTorch.flickerSpeed = 5.0f + (i * 1.5f) + (j * 0.7f);
+            columnTorch.flickerIntensity = 0.5f + (j * 0.1f);
+            addPointLight(columnTorch);
+        }
     }
 
-    // 4. BOOKSHELF READING LIGHTS - Match the bookshelf torch positions
+    // 4. BOOKSHELF READING LIGHTS - Warm study lighting (4 torches)
+    std::cout << "📚 Installing bookshelf reading lights..." << std::endl;
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
-        float x = roomRadius * 0.7f * cos(angle);
-        float z = roomRadius * 0.7f * sin(angle);
+        glm::vec3 shelfPosition = glm::vec3(
+            roomRadius * 0.65f * cos(angle),
+            4.5f, // High above bookshelves
+            roomRadius * 0.65f * sin(angle)
+        );
 
         PointLight readingLight(
-            glm::vec3(x, 4.3f, z), // Above bookshelf torch
-            glm::vec3(0.8f, 0.6f, 0.3f), // Warm reading light
-            1.2f, // Moderate intensity for reading
-            1.0f, 0.35f, 0.44f // Closer range
+            shelfPosition,
+            glm::vec3(0.9f, 0.7f, 0.4f), // Warm reading light
+            1.8f, // Moderate intensity for comfortable reading
+            1.0f, 0.35f, 0.44f // Localized range
         );
         readingLight.flickering = true;
-        readingLight.flickerSpeed = 4.0f + (i * 1.0f);
-        readingLight.flickerIntensity = 0.3f; // Less flicker for reading
+        readingLight.flickerSpeed = 3.0f + (i * 0.5f); // Gentle flicker
+        readingLight.flickerIntensity = 0.2f; // Minimal flicker for reading comfort
         addPointLight(readingLight);
     }
 
-    // 5. MYSTICAL PORTAL LIGHTS - Keep existing
+    // 5. PORTAL ACCENT LIGHTS - Mystical blue lights near portals (4 lights)
+    std::cout << "🌀 Creating portal mystical lighting..." << std::endl;
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
-        glm::vec3 portalPos = glm::vec3(roomRadius * 0.8f * cos(angle), 1.0f, roomRadius * 0.8f * sin(angle));
+        glm::vec3 portalPosition = glm::vec3(
+            roomRadius * 0.75f * cos(angle),
+            2.5f,
+            roomRadius * 0.75f * sin(angle)
+        );
 
         PointLight portalLight(
-            portalPos,
-            glm::vec3(0.1f, 0.05f, 0.4f), // Deep blue mystical
-            0.6f, // Very dim
-            1.0f, 0.35f, 0.44f
+            portalPosition,
+            glm::vec3(0.3f, 0.5f, 1.0f), // Mystical blue
+            1.2f, // Subtle accent lighting
+            1.0f, 0.45f, 0.75f // Short range
         );
         portalLight.moving = true;
-        portalLight.moveSpeed = 0.5f;
-        portalLight.moveRadius = 0.3f;
-        portalLight.moveCenter = portalPos;
+        portalLight.moveSpeed = 0.8f + (i * 0.2f);
+        portalLight.moveRadius = 0.5f;
+        portalLight.moveCenter = portalPosition;
+        portalLight.flickering = true;
+        portalLight.flickerSpeed = 4.0f;
+        portalLight.flickerIntensity = 0.3f;
         addPointLight(portalLight);
     }
 
-    // 6. Subtle moonlight
-    DirectionalLight dimMoonlight(
-        glm::vec3(0.3f, -1.0f, 0.2f),
-        glm::vec3(0.05f, 0.05f, 0.1f),
-        0.1f
-    );
-    addDirectionalLight(dimMoonlight);
+    // 6. FLOATING BOOK ACCENT LIGHTS - Subtle magical glow (6 lights)
+    std::cout << "✨ Adding magical book aura lights..." << std::endl;
+    for (int i = 0; i < 6; i++) {
+        float angle = glm::radians(60.0f * static_cast<float>(i));
+        glm::vec3 bookLightPos = glm::vec3(
+            2.5f * cos(angle),
+            3.5f + sin(angle * 2.0f) * 0.5f,
+            2.5f * sin(angle)
+        );
 
-    std::cout << "DARK LIBRARY setup complete!" << std::endl;
-    std::cout << "Total lights: " << pointLights.size() << std::endl;
+        PointLight bookLight(
+            bookLightPos,
+            glm::vec3(0.8f, 0.6f, 1.0f), // Soft purple-white
+            0.8f, // Very subtle
+            1.0f, 0.8f, 1.6f // Very short range
+        );
+        bookLight.moving = true;
+        bookLight.moveSpeed = 0.3f;
+        bookLight.moveRadius = 0.3f;
+        bookLight.moveCenter = bookLightPos;
+        bookLight.flickering = true;
+        bookLight.flickerSpeed = 8.0f;
+        bookLight.flickerIntensity = 0.6f;
+        addPointLight(bookLight);
+    }
+
+    // 7. ATMOSPHERIC DIRECTIONAL LIGHTING
+    std::cout << "🌙 Setting up atmospheric directional lights..." << std::endl;
+
+    // Soft moonlight from above
+    DirectionalLight moonlight(
+        glm::vec3(0.2f, -1.0f, 0.3f),
+        glm::vec3(0.4f, 0.4f, 0.6f), // Cool blue moonlight
+        0.3f // Subtle ambient enhancement
+    );
+    addDirectionalLight(moonlight);
+
+    // Warm candlelight atmosphere from sides
+    DirectionalLight warmAmbient(
+        glm::vec3(1.0f, -0.3f, 0.5f),
+        glm::vec3(1.0f, 0.7f, 0.4f), // Warm orange
+        0.2f // Very subtle
+    );
+    addDirectionalLight(warmAmbient);
+
+    std::cout << "💡 Library lighting setup complete!" << std::endl;
+    std::cout << "   📊 Total point lights: " << pointLights.size() << std::endl;
+    std::cout << "   📊 Total directional lights: " << directionalLights.size() << std::endl;
+    std::cout << "   🔥 Flickering lights: " << std::count_if(pointLights.begin(), pointLights.end(),
+        [](const PointLight& light) { return light.flickering; }) << std::endl;
+    std::cout << "   🌊 Moving lights: " << std::count_if(pointLights.begin(), pointLights.end(),
+        [](const PointLight& light) { return light.moving; }) << std::endl;
 }
 
 void LightingManager::update(float deltaTime) {
     // Update animated point lights
     for (auto& light : pointLights) {
-        // Handle flickering
+        // Handle flickering with more natural variation
         if (light.flickering) {
             light.flickerTime += light.flickerSpeed * deltaTime;
-            float flicker = sin(light.flickerTime) * 0.5f + 0.5f; // 0 to 1
-            light.intensity = light.baseIntensity * (1.0f - light.flickerIntensity + light.flickerIntensity * flicker);
+
+            // Use multiple sine waves for more natural flicker
+            float flicker1 = sin(light.flickerTime) * 0.5f + 0.5f;
+            float flicker2 = sin(light.flickerTime * 1.7f + 0.5f) * 0.3f + 0.7f;
+            float flicker3 = sin(light.flickerTime * 2.3f + 1.2f) * 0.2f + 0.8f;
+
+            float combinedFlicker = (flicker1 + flicker2 + flicker3) / 3.0f;
+            light.intensity = light.baseIntensity * (1.0f - light.flickerIntensity + light.flickerIntensity * combinedFlicker);
         }
 
-        // Handle movement
+        // Handle smooth orbital movement
         if (light.moving) {
             light.moveTime += light.moveSpeed * deltaTime;
             float x = light.moveCenter.x + light.moveRadius * cos(light.moveTime);
             float z = light.moveCenter.z + light.moveRadius * sin(light.moveTime);
-            light.position = glm::vec3(x, light.position.y, z);
+            // Add subtle vertical bobbing
+            float y = light.moveCenter.y + sin(light.moveTime * 2.0f) * 0.1f;
+            light.position = glm::vec3(x, y, z);
         }
     }
 }
@@ -172,12 +219,15 @@ void LightingManager::bindToShader(Shader& shader) const {
     shader.setVec3("ambientColor", ambientColor.x, ambientColor.y, ambientColor.z);
     shader.setFloat("ambientStrength", ambientStrength);
 
-    // Bind number of lights
-    shader.setInt("numPointLights", static_cast<int>(pointLights.size()));
-    shader.setInt("numDirLights", static_cast<int>(directionalLights.size()));
+    // Bind number of lights (clamped to shader limits)
+    int numPointLights = std::min(static_cast<int>(pointLights.size()), 8);
+    int numDirLights = std::min(static_cast<int>(directionalLights.size()), 2);
+
+    shader.setInt("numPointLights", numPointLights);
+    shader.setInt("numDirLights", numDirLights);
 
     // Bind point lights
-    for (size_t i = 0; i < pointLights.size() && i < 8; i++) {
+    for (int i = 0; i < numPointLights; i++) {
         std::string base = "pointLights[" + std::to_string(i) + "]";
         const auto& light = pointLights[i];
 
@@ -190,7 +240,7 @@ void LightingManager::bindToShader(Shader& shader) const {
     }
 
     // Bind directional lights
-    for (size_t i = 0; i < directionalLights.size() && i < 2; i++) {
+    for (int i = 0; i < numDirLights; i++) {
         std::string base = "dirLights[" + std::to_string(i) + "]";
         const auto& light = directionalLights[i];
 
@@ -214,6 +264,7 @@ void LightingManager::setLightMoving(int lightIndex, bool enabled, const glm::ve
         pointLights[lightIndex].moveCenter = center;
         pointLights[lightIndex].moveRadius = radius;
         pointLights[lightIndex].moveSpeed = speed;
+        pointLights[lightIndex].basePosition = center;
     }
 }
 
@@ -235,7 +286,7 @@ void LightingManager::updatePointLightIntensity(int lightIndex, float intensity)
     }
 }
 
-// LIGHT STRENGTH CONTROL METHODS
+// ENHANCED LIGHTING CONTROL METHODS
 void LightingManager::setGlobalLightIntensity(float multiplier) {
     for (auto& light : pointLights) {
         light.baseIntensity *= multiplier;
@@ -244,48 +295,71 @@ void LightingManager::setGlobalLightIntensity(float multiplier) {
     for (auto& light : directionalLights) {
         light.intensity *= multiplier;
     }
+    std::cout << "🔆 Global light intensity adjusted by " << multiplier << "x" << std::endl;
 }
 
 void LightingManager::setTorchIntensity(float intensity) {
-    // Assuming first 13 lights are torches (1 central + 8 wall + 4 column)
-    for (int i = 1; i < std::min(13, static_cast<int>(pointLights.size())); i++) {
+    // Wall torches (indices 1-8) and column torches (indices 9-16)
+    for (int i = 1; i < std::min(17, static_cast<int>(pointLights.size())); i++) {
         pointLights[i].baseIntensity = intensity;
         pointLights[i].intensity = intensity;
     }
+    std::cout << "🔥 Torch intensity set to " << intensity << std::endl;
 }
 
 void LightingManager::setAmbientDarkness(float darkness) {
     // darkness: 0.0 = pitch black, 1.0 = normal lighting
-    float ambientLevel = 0.05f * darkness; // Max 0.05 for dark atmosphere
+    float ambientLevel = 0.15f * darkness; // Max 0.15 for good portal visibility
     ambientStrength = ambientLevel;
 
-    // Adjust ambient color darkness
-    ambientColor = glm::vec3(0.02f * darkness, 0.01f * darkness, 0.05f * darkness);
+    // Adjust ambient color warmth based on darkness
+    float warmth = 0.08f * darkness;
+    ambientColor = glm::vec3(warmth, warmth * 0.75f, warmth * 1.5f);
+
+    std::cout << "🌙 Ambient darkness set to " << (1.0f - darkness) * 100.0f << "%" << std::endl;
 }
 
 void LightingManager::setDramaticMode(bool enabled) {
     if (enabled) {
-        // Ultra dramatic - almost no ambient
-        setAmbientDarkness(0.2f);
-        setTorchIntensity(2.5f); // Brighter torches for contrast
+        std::cout << "🎭 DRAMATIC MODE: Enabling cinematic lighting" << std::endl;
+        setAmbientDarkness(0.2f); // Very dark ambient
+        setTorchIntensity(3.5f);   // Brighter torches for high contrast
+
+        // Increase flicker for dramatic effect
+        for (auto& light : pointLights) {
+            if (light.flickering) {
+                light.flickerIntensity = std::min(0.7f, light.flickerIntensity * 1.5f);
+                light.flickerSpeed *= 1.3f;
+            }
+        }
     }
     else {
-        // Normal dark mode
-        setAmbientDarkness(0.5f);
-        setTorchIntensity(2.0f);
+        std::cout << "✨ STANDARD MODE: Balanced atmospheric lighting" << std::endl;
+        setAmbientDarkness(0.5f); // Moderate ambient
+        setTorchIntensity(2.5f);   // Comfortable torch brightness
+
+        // Reset flicker to normal
+        for (auto& light : pointLights) {
+            if (light.flickering) {
+                light.flickerIntensity = std::max(0.2f, light.flickerIntensity / 1.5f);
+                light.flickerSpeed /= 1.3f;
+            }
+        }
     }
 }
 
 void LightingManager::increaseTorchFlicker() {
-    for (int i = 1; i < std::min(13, static_cast<int>(pointLights.size())); i++) {
+    for (int i = 1; i < std::min(17, static_cast<int>(pointLights.size())); i++) {
         pointLights[i].flickerIntensity = std::min(0.8f, pointLights[i].flickerIntensity + 0.1f);
-        pointLights[i].flickerSpeed += 1.0f;
+        pointLights[i].flickerSpeed += 0.5f;
     }
+    std::cout << "🔥 Increased torch flicker intensity" << std::endl;
 }
 
 void LightingManager::decreaseTorchFlicker() {
-    for (int i = 1; i < std::min(13, static_cast<int>(pointLights.size())); i++) {
+    for (int i = 1; i < std::min(17, static_cast<int>(pointLights.size())); i++) {
         pointLights[i].flickerIntensity = std::max(0.1f, pointLights[i].flickerIntensity - 0.1f);
-        pointLights[i].flickerSpeed = std::max(2.0f, pointLights[i].flickerSpeed - 1.0f);
+        pointLights[i].flickerSpeed = std::max(1.0f, pointLights[i].flickerSpeed - 0.5f);
     }
+    std::cout << "🔥 Decreased torch flicker intensity" << std::endl;
 }

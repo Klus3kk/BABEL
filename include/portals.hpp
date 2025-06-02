@@ -14,8 +14,8 @@ struct Portal {
     glm::vec3 right;
 
     // Portal dimensions
-    float width = 3.0f;
-    float height = 6.0f;
+    float width = 3.2f;
+    float height = 6.2f;
 
     // Destination portal connection
     int destinationPortalId = -1;
@@ -95,6 +95,12 @@ public:
     void renderPortalSurfaces(Shader& portalShader, const glm::mat4& view, const glm::mat4& projection,
         const glm::vec3& cameraPos, float time);
 
+    // Add this method to the header file (portals.hpp)
+    void renderPortalViewsRecursive(
+        const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
+        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
+        const glm::mat4& projection, int recursionDepth);
+
     // Player interaction
     bool checkPortalCollision(const glm::vec3& oldPos, const glm::vec3& newPos, glm::vec3& teleportPos) const;
 
@@ -106,7 +112,7 @@ public:
     // Getters
     size_t getPortalCount() const { return portals.size(); }
     const Portal& getPortal(int index) const { return portals[index]; }
-
+    int getRecursionDepth() const { return maxRecursionDepth; }
     // Debug
     void printDebugInfo() const;
 };

@@ -1,4 +1,10 @@
-﻿#include <GL/glew.h>
+﻿// Force NVIDIA GPU usage on laptops with dual graphics
+extern "C" {
+    __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -33,6 +39,11 @@ bool hKeyPressed = false;
 // Portal controls
 static bool portalTogglePressed = false;
 static bool recursivePortalsEnabled = true;
+
+// Global variables for recursive rendering
+float currentFrame = 0.0f;
+glm::vec3 globalCameraPos;
+glm::vec3 globalCameraFront;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -128,7 +139,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL - FIXED SIMPLE VERSION", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL - RECURSIVE PORTALS", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -148,7 +159,7 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     srand(static_cast<unsigned int>(time(nullptr)));
 
-    std::cout << "🏛️ BABEL - FIXED SIMPLE VERSION" << std::endl;
+    std::cout << "🏛️ BABEL - RECURSIVE PORTALS VERSION" << std::endl;
 
     // Load shaders
     Shader basicShader("shaders/book.vert", "shaders/book.frag");
@@ -180,7 +191,7 @@ int main() {
     const float roomHeight = 6.0f;
     const int numSides = 8;
 
-    std::cout << "\n🏗️ Building SIMPLE library..." << std::endl;
+    std::cout << "\n🏗️ Building RECURSIVE library..." << std::endl;
 
     // FLOOR
     scene.addObject(floorModel.get(),
@@ -232,7 +243,7 @@ int main() {
             glm::vec3(1.5f, 1.5f, 1.5f));
     }
 
-    // BOOKSHELVES - Towering knowledge repositories
+    // BOOKSHELVES
     std::cout << "Placing bookshelves..." << std::endl;
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
@@ -240,7 +251,7 @@ int main() {
         float z = roomRadius * 0.90f * sin(angle);
 
         Model* shelfModel = (i % 2 == 0) ? bookshelfModel.get() : bookshelf2Model.get();
-		float rotationToCenter = angle + glm::radians(90.0f) + (i % 2 == 0 ? glm::radians(360.0f) : 135.0f);
+        float rotationToCenter = angle + glm::radians(90.0f) + (i % 2 == 0 ? glm::radians(360.0f) : 135.0f);
         glm::vec3 scale = (i % 2 == 0) ? glm::vec3(2.0f, 4.3f, 3.0f) : glm::vec3(1.4f, 4.0f, 1.6f);
 
         scene.addObject(shelfModel,
@@ -268,12 +279,11 @@ int main() {
             glm::vec3(0.0f, columnAngle + glm::radians(90.0f), 0.0f),
             glm::vec3(0.8f, 0.8f, 0.8f));
 
-        // ORBITING TORCHES around columns
         scene.objects[torchIndex].setOrbiting(true, columnCenter + glm::vec3(0.0f, 3.0f, 0.0f), 1.2f, 0.5f + (i * 0.2f));
         scene.objects[torchIndex].setRotating(true, 1.0f);
     }
 
-    // FLOATING BOOKS - LOTS OF THEM
+    // FLOATING BOOKS
     std::cout << "✨ FLOATING BOOKS..." << std::endl;
     for (int i = 0; i < 20; i++) {
         float angle = glm::radians(18.0f * static_cast<float>(i));
@@ -286,7 +296,6 @@ int main() {
             glm::vec3(glm::radians(15.0f), angle, glm::radians(10.0f)),
             glm::vec3(1.2f, 1.2f, 1.2f));
 
-        // Different book animations
         switch (i % 4) {
         case 0:
             scene.objects[bookIndex].setOrbiting(true, glm::vec3(0.0f, height, 0.0f), radius, 0.4f);
@@ -308,47 +317,51 @@ int main() {
         }
     }
 
-    // Setup simple lighting
+    // Setup lighting
     LightingManager lightingManager;
-    std::cout << "💡 SIMPLE LIGHTING..." << std::endl;
-
+    std::cout << "💡 LIBRARY LIGHTING..." << std::endl;
     lightingManager.setupLibraryLighting(roomRadius, roomHeight);
 
-    // Setup portals with BIGGER SIZE and TELEPORTATION
+
+    // Setup RECURSIVE portals
     PortalSystem portalSystem;
-    std::cout << "🌀 BIGGER PORTALS WITH TELEPORTATION..." << std::endl;
+    std::cout << "🌀 RECURSIVE PORTALS..." << std::endl;
     portalSystem.initialize();
 
-    // Add SMALLER portals at door positions
+    // Add portals at door positions
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
         glm::vec3 position = glm::vec3(
             roomRadius * 0.85f * cos(angle),
-            2.5f, // Lower height
+            2.8f,
             roomRadius * 0.85f * sin(angle)
         );
         glm::vec3 normal = glm::vec3(-cos(angle), 0.0f, -sin(angle));
         portalSystem.addPortal(position, normal);
+        std::cout << "Added portal " << i << " at angle " << glm::degrees(angle) << "°" << std::endl;
     }
 
-    // Connect portals OPPOSITE PAIRS: 0-2 and 1-3
+    // Connect portals - VERIFY CONNECTIONS
     portalSystem.connectPortals(0, 2); // North <-> South
     portalSystem.connectPortals(1, 3); // East <-> West
 
-    // Set SMALLER portal size and quality
-    portalSystem.setQuality(512); // Smaller resolution
-    portalSystem.setRecursionDepth(3); // Less recursion
+    std::cout << "Portal connections:" << std::endl;
+    std::cout << "Portal 0 (North) <-> Portal 2 (South)" << std::endl;
+    std::cout << "Portal 1 (East) <-> Portal 3 (West)" << std::endl;
 
-    std::cout << "\n🎮 SIMPLE CONTROLS:" << std::endl;
+    // Set portal quality and recursion
+    portalSystem.setQuality(512);        // Reduced from 768 for better performance
+    portalSystem.setRecursionDepth(2);   // Reduced from 4 to 2 levels
+
+    std::cout << "\n🎮 RECURSIVE CONTROLS:" << std::endl;
     std::cout << "  WASD + Mouse - Move" << std::endl;
     std::cout << "  Space/Ctrl - Up/Down" << std::endl;
     std::cout << "  P - Toggle portals" << std::endl;
     std::cout << "  H - Debug" << std::endl;
-    std::cout << "\n✅ FIXES:" << std::endl;
-    std::cout << "  🔧 BOOKSHELVES FACE CENTER (simple angle + 180)" << std::endl;
-    std::cout << "  🔧 MORE BOOKSHELVES FACE OUTWARD (simple angle + 0)" << std::endl;
-    std::cout << "  🔧 SPINNING TORCHES (different animations)" << std::endl;
-    std::cout << "  🔧 SIMPLE PORTAL SYSTEM (back to basics)" << std::endl;
+    std::cout << "\n✅ RECURSIVE FEATURES:" << std::endl;
+    std::cout << "  🌀 INFINITE PORTAL RECURSION" << std::endl;
+    std::cout << "  🔄 PORTALS WITHIN PORTALS" << std::endl;
+    std::cout << "  ♾️ HALL OF MIRRORS EFFECT" << std::endl;
     std::cout << "===========================================\n" << std::endl;
 
     // Camera setup
@@ -359,12 +372,18 @@ int main() {
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
 
-    // Render function
+    // RECURSIVE RENDER FUNCTION
     auto renderSceneFunc = [&](const glm::mat4& view, const glm::mat4& projection) {
+        // Render main scene objects
         basicShader.use();
         basicShader.setMat4("view", &view[0][0]);
         basicShader.setMat4("projection", &projection[0][0]);
-        basicShader.setVec3("viewPos", cameraPos.x, cameraPos.y, cameraPos.z);
+
+        // Extract camera position from view matrix for lighting
+        glm::mat4 invView = glm::inverse(view);
+        glm::vec3 currentCameraPos = glm::vec3(invView[3]);
+        basicShader.setVec3("viewPos", currentCameraPos.x, currentCameraPos.y, currentCameraPos.z);
+
         lightingManager.bindToShader(basicShader);
 
         for (const auto& obj : scene.objects) {
@@ -397,16 +416,25 @@ int main() {
             basicShader.setMat4("model", &obj.modelMatrix[0][0]);
             obj.model->draw();
         }
+
+        // CRITICAL: Render portal surfaces within the scene for recursion
+        if (recursivePortalsEnabled) {
+            portalSystem.renderPortalSurfaces(portalShader, view, projection, currentCameraPos, currentFrame);
+        }
         };
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
-        float currentFrame = static_cast<float>(glfwGetTime());
+        currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
         // Input
         processInput(window, cameraPos, cameraFront, cameraUp, deltaTime, lightingManager, portalSystem);
+
+        // Update globals for recursive rendering
+        globalCameraPos = cameraPos;
+        globalCameraFront = cameraFront;
 
         // Update camera
         glm::vec3 direction;
@@ -429,25 +457,26 @@ int main() {
         glClearColor(0.02f, 0.015f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Render portals first
+        // RECURSIVE PORTAL RENDERING - This creates the infinite effect!
         if (recursivePortalsEnabled) {
+            // Add frame synchronization to prevent glitches
+            glFlush();
             portalSystem.renderPortalViews(renderSceneFunc, cameraPos, cameraFront, cameraUp, projection);
+            glFlush();
         }
 
-        // Render main scene
+        // Render main scene (which also renders portal surfaces)
         renderSceneFunc(view, projection);
 
-        // Render portal surfaces
-        if (recursivePortalsEnabled) {
-            portalSystem.renderPortalSurfaces(portalShader, view, projection, cameraPos, currentFrame);
-        }
-
-        // Debug
+        // Debug - Print portal info
         if (showDebugInfo) {
             static float debugTimer = 0.0f;
             debugTimer += deltaTime;
             if (debugTimer >= 2.0f) {
-                std::cout << "FPS: " << (1.0f / deltaTime) << " | Objects: " << scene.objects.size() << std::endl;
+                std::cout << "FPS: " << (1.0f / deltaTime) << " | Objects: " << scene.objects.size()
+                    << " | Recursion: " << portalSystem.getRecursionDepth() << std::endl;
+                std::cout << "Portals: " << portalSystem.getPortalCount() << " | Active: "
+                    << (recursivePortalsEnabled ? "YES" : "NO") << std::endl;
                 debugTimer = 0.0f;
             }
         }

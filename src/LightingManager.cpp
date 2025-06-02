@@ -11,179 +11,61 @@ void LightingManager::addDirectionalLight(const DirectionalLight& light) {
     directionalLights.push_back(light);
 }
 
+// Replace the setupLibraryLighting function in src/LightingManager.cpp
 void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
-    // Clear existing lights
     pointLights.clear();
     directionalLights.clear();
 
-    std::cout << "🕯️ Setting up enhanced library lighting system..." << std::endl;
+    std::cout << "🕯️ Setting up simple library lighting..." << std::endl;
 
-    // ATMOSPHERIC AMBIENT LIGHTING
-    ambientColor = glm::vec3(0.08f, 0.06f, 0.12f); // Warm purple ambient
-    ambientStrength = 0.15f; // Sufficient for portal visibility
+    // MODERATE AMBIENT - not too bright, not too dark
+    ambientColor = glm::vec3(0.15f, 0.12f, 0.18f); // Subtle purple ambient
+    ambientStrength = 0.3f; // Reasonable ambient
 
-    // 1. CENTRAL MYSTICAL LAMP - Primary light source
+    // 1. CENTRAL LAMP - Main light source
     PointLight centralLamp(
-        glm::vec3(0.0f, roomHeight + 0.8f, 0.0f),
-        glm::vec3(1.0f, 0.9f, 0.7f), // Warm golden light
-        3.5f, // Strong central illumination
-        1.0f, 0.045f, 0.0075f // Wide spread
+        glm::vec3(0.0f, roomHeight + 0.5f, 0.0f),
+        glm::vec3(1.0f, 0.9f, 0.7f), // Warm white
+        2.0f, // Moderate intensity
+        1.0f, 0.09f, 0.032f // Standard attenuation
     );
     centralLamp.flickering = true;
     centralLamp.flickerSpeed = 2.0f;
-    centralLamp.flickerIntensity = 0.15f; // Gentle flickering
+    centralLamp.flickerIntensity = 0.1f;
     addPointLight(centralLamp);
 
-    // 2. WALL TORCHES - Perimeter atmospheric lighting (8 torches)
-    std::cout << "🔥 Installing wall torches..." << std::endl;
-    for (int i = 0; i < 8; i++) {
-        float angle = glm::radians(45.0f * static_cast<float>(i));
-        glm::vec3 torchPosition = glm::vec3(
-            roomRadius * 0.92f * cos(angle),
-            2.0f, // Match torch model height
-            roomRadius * 0.92f * sin(angle)
-        );
-
-        PointLight wallTorch(
-            torchPosition,
-            glm::vec3(1.0f, 0.5f, 0.1f), // Orange flame color
-            2.2f, // Medium intensity
-            1.0f, 0.22f, 0.20f // Medium range
-        );
-        wallTorch.flickering = true;
-        wallTorch.flickerSpeed = 6.0f + (i * 0.8f); // Varied flicker speeds
-        wallTorch.flickerIntensity = 0.4f + (i % 3) * 0.1f; // Varied intensities
-        addPointLight(wallTorch);
-    }
-
-    // 3. COLUMN TORCHES - Strategic placement (8 total, 2 per column)
-    std::cout << "🏛️ Setting up column torches..." << std::endl;
-    for (int i = 0; i < 4; i++) {
-        float columnAngle = glm::radians(90.0f * static_cast<float>(i));
-        glm::vec3 columnCenter = glm::vec3(3.2f * cos(columnAngle), 0.0f, 3.2f * sin(columnAngle));
-
-        // Two torches per column at different heights and positions
-        for (int j = 0; j < 2; j++) {
-            float offsetAngle = columnAngle + (j == 0 ? glm::radians(45.0f) : glm::radians(-45.0f));
-            glm::vec3 torchPosition = columnCenter + glm::vec3(
-                1.2f * cos(offsetAngle),
-                2.8f + j * 0.5f, // Staggered heights
-                1.2f * sin(offsetAngle)
-            );
-
-            PointLight columnTorch(
-                torchPosition,
-                glm::vec3(1.0f, 0.4f, 0.05f), // Deep orange-red
-                2.5f, // Stronger for dramatic effect
-                1.0f, 0.14f, 0.07f // Focused range
-            );
-            columnTorch.flickering = true;
-            columnTorch.flickerSpeed = 5.0f + (i * 1.5f) + (j * 0.7f);
-            columnTorch.flickerIntensity = 0.5f + (j * 0.1f);
-            addPointLight(columnTorch);
-        }
-    }
-
-    // 4. BOOKSHELF READING LIGHTS - Warm study lighting (4 torches)
-    std::cout << "📚 Installing bookshelf reading lights..." << std::endl;
+    // 2. TORCH LIGHTS - One for each torch (4 total)
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
-        glm::vec3 shelfPosition = glm::vec3(
-            roomRadius * 0.65f * cos(angle),
-            4.5f, // High above bookshelves
-            roomRadius * 0.65f * sin(angle)
+        glm::vec3 torchPos = glm::vec3(
+            3.2f * cos(angle) + 1.2f * cos(angle + glm::radians(90.0f)),
+            3.0f,
+            3.2f * sin(angle) + 1.2f * sin(angle + glm::radians(90.0f))
         );
 
-        PointLight readingLight(
-            shelfPosition,
-            glm::vec3(0.9f, 0.7f, 0.4f), // Warm reading light
-            1.8f, // Moderate intensity for comfortable reading
-            1.0f, 0.35f, 0.44f // Localized range
+        PointLight torchLight(
+            torchPos,
+            glm::vec3(1.0f, 0.6f, 0.2f), // Orange flame color
+            1.5f, // Moderate torch brightness
+            1.0f, 0.22f, 0.20f // Localized light
         );
-        readingLight.flickering = true;
-        readingLight.flickerSpeed = 3.0f + (i * 0.5f); // Gentle flicker
-        readingLight.flickerIntensity = 0.2f; // Minimal flicker for reading comfort
-        addPointLight(readingLight);
+        torchLight.flickering = true;
+        torchLight.flickerSpeed = 5.0f + (i * 0.8f);
+        torchLight.flickerIntensity = 0.3f;
+        addPointLight(torchLight);
     }
 
-    // 5. PORTAL ACCENT LIGHTS - Mystical blue lights near portals (4 lights)
-    std::cout << "🌀 Creating portal mystical lighting..." << std::endl;
-    for (int i = 0; i < 4; i++) {
-        float angle = glm::radians(90.0f * static_cast<float>(i));
-        glm::vec3 portalPosition = glm::vec3(
-            roomRadius * 0.75f * cos(angle),
-            2.5f,
-            roomRadius * 0.75f * sin(angle)
-        );
-
-        PointLight portalLight(
-            portalPosition,
-            glm::vec3(0.3f, 0.5f, 1.0f), // Mystical blue
-            1.2f, // Subtle accent lighting
-            1.0f, 0.45f, 0.75f // Short range
-        );
-        portalLight.moving = true;
-        portalLight.moveSpeed = 0.8f + (i * 0.2f);
-        portalLight.moveRadius = 0.5f;
-        portalLight.moveCenter = portalPosition;
-        portalLight.flickering = true;
-        portalLight.flickerSpeed = 4.0f;
-        portalLight.flickerIntensity = 0.3f;
-        addPointLight(portalLight);
-    }
-
-    // 6. FLOATING BOOK ACCENT LIGHTS - Subtle magical glow (6 lights)
-    std::cout << "✨ Adding magical book aura lights..." << std::endl;
-    for (int i = 0; i < 6; i++) {
-        float angle = glm::radians(60.0f * static_cast<float>(i));
-        glm::vec3 bookLightPos = glm::vec3(
-            2.5f * cos(angle),
-            3.5f + sin(angle * 2.0f) * 0.5f,
-            2.5f * sin(angle)
-        );
-
-        PointLight bookLight(
-            bookLightPos,
-            glm::vec3(0.8f, 0.6f, 1.0f), // Soft purple-white
-            0.8f, // Very subtle
-            1.0f, 0.8f, 1.6f // Very short range
-        );
-        bookLight.moving = true;
-        bookLight.moveSpeed = 0.3f;
-        bookLight.moveRadius = 0.3f;
-        bookLight.moveCenter = bookLightPos;
-        bookLight.flickering = true;
-        bookLight.flickerSpeed = 8.0f;
-        bookLight.flickerIntensity = 0.6f;
-        addPointLight(bookLight);
-    }
-
-    // 7. ATMOSPHERIC DIRECTIONAL LIGHTING
-    std::cout << "🌙 Setting up atmospheric directional lights..." << std::endl;
-
-    // Soft moonlight from above
-    DirectionalLight moonlight(
-        glm::vec3(0.2f, -1.0f, 0.3f),
-        glm::vec3(0.4f, 0.4f, 0.6f), // Cool blue moonlight
-        0.3f // Subtle ambient enhancement
+    // 3. SIMPLE DIRECTIONAL FILL
+    DirectionalLight skylight(
+        glm::vec3(0.2f, -1.0f, 0.3f), // Slight angle from above
+        glm::vec3(0.6f, 0.6f, 0.8f), // Cool blue-white
+        0.4f // Gentle fill light
     );
-    addDirectionalLight(moonlight);
+    addDirectionalLight(skylight);
 
-    // Warm candlelight atmosphere from sides
-    DirectionalLight warmAmbient(
-        glm::vec3(1.0f, -0.3f, 0.5f),
-        glm::vec3(1.0f, 0.7f, 0.4f), // Warm orange
-        0.2f // Very subtle
-    );
-    addDirectionalLight(warmAmbient);
-
-    std::cout << "💡 Library lighting setup complete!" << std::endl;
-    std::cout << "   📊 Total point lights: " << pointLights.size() << std::endl;
-    std::cout << "   📊 Total directional lights: " << directionalLights.size() << std::endl;
-    std::cout << "   🔥 Flickering lights: " << std::count_if(pointLights.begin(), pointLights.end(),
-        [](const PointLight& light) { return light.flickering; }) << std::endl;
-    std::cout << "   🌊 Moving lights: " << std::count_if(pointLights.begin(), pointLights.end(),
-        [](const PointLight& light) { return light.moving; }) << std::endl;
+    std::cout << "💡 Simple lighting setup complete!" << std::endl;
+    std::cout << "   📊 Point lights: " << pointLights.size() << std::endl;
+    std::cout << "   📊 Directional lights: " << directionalLights.size() << std::endl;
 }
 
 void LightingManager::update(float deltaTime) {

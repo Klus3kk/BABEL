@@ -276,7 +276,7 @@ glm::mat4 PortalSystem::calculatePortalViewMatrix(const Portal& fromPortal, cons
 
     // Move the camera slightly forward into the next room for better perspective
     virtualCameraPos += cameraFront * 10.0f;
-    virtualCameraPos.y += 1.5f;
+    //virtualCameraPos.y += 1.5f;
 
     // Keep same viewing direction for seamless infinite corridor
     glm::vec3 virtualTarget = virtualCameraPos + cameraFront;
@@ -289,51 +289,28 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
 
     if (!areActive()) return;
 
-    // Save current state
-    GLboolean depthMask;
-    glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
-
     portalShader.use();
     portalShader.setMat4("view", &view[0][0]);
     portalShader.setMat4("projection", &projection[0][0]);
     portalShader.setFloat("time", time);
 
-    // Proper depth and blending setup
-    glDepthMask(GL_FALSE);  // Don't write to depth buffer
-    glEnable(GL_DEPTH_TEST); // But still test depth
-    glDepthFunc(GL_LESS);
-
-    // Enable blending for portal effects
+    // MINIMAL STATE CHANGES
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Disable face culling to ensure portals are visible from both sides
-    glDisable(GL_CULL_FACE);
+    glDepthMask(GL_FALSE);
 
     for (size_t i = 0; i < portals.size(); i++) {
         const auto& portal = portals[i];
 
-        if (!portal.active) continue;
+        if (!portal.active || portal.distanceFromPlayer > 50.0f || portal.colorTexture == 0) continue;
 
-        // Render portals within reasonable distance
-        if (portal.distanceFromPlayer > 100.0f) continue;
-
-        // Check if portal texture is valid
-        if (portal.colorTexture == 0) {
-            std::cerr << "Portal " << i << " has invalid texture!" << std::endl;
-            continue;
-        }
-
-        // Create portal transformation matrix
         glm::mat4 portalMatrix = glm::mat4(1.0f);
         portalMatrix = glm::translate(portalMatrix, portal.position);
 
-        // Calculate proper orientation
         glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
         glm::vec3 right = glm::normalize(glm::cross(up, portal.normal));
         up = glm::normalize(glm::cross(portal.normal, right));
 
-        // Create rotation matrix
         glm::mat4 rotation = glm::mat4(1.0f);
         rotation[0] = glm::vec4(right, 0.0f);
         rotation[1] = glm::vec4(up, 0.0f);
@@ -343,20 +320,10 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
         portalShader.setMat4("model", &portalMatrix[0][0]);
         portalShader.setBool("portalActive", true);
 
-        // Bind portal texture with error checking
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, portal.colorTexture);
-
-        // Check for OpenGL errors
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            std::cerr << "OpenGL error when binding portal texture: " << error << std::endl;
-            continue;
-        }
-
         portalShader.setInt("portalView", 0);
 
-        // Render portal quad
         if (portal.portalVAO != 0) {
             glBindVertexArray(portal.portalVAO);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -364,9 +331,8 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
         }
     }
 
-    // Restore state
-    glEnable(GL_CULL_FACE);
-    glDepthMask(depthMask);
+    // RESTORE STATE
+    glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 }
 
@@ -437,7 +403,7 @@ void PortalSystem::setQuality(int textureResolution) {
 }
 
 void PortalSystem::setRecursionDepth(int depth) {
-    maxRecursionDepth = glm::clamp(depth, 1, 5);
+    maxRecursionDepth = glm::clamp(depth, 1, 20);
 }
 
 void PortalSystem::cleanup() {

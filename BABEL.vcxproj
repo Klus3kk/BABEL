@@ -30,10 +30,12 @@
     <ClCompile Include="src\TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\book.frag" />
-    <None Include="shaders\book.vert" />
+    <None Include="shaders\light.frag" />
+    <None Include="shaders\light.vert" />
     <None Include="shaders\portal.frag" />
     <None Include="shaders\portal.vert" />
+    <None Include="shaders\standard.frag" />
+    <None Include="shaders\standard.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\debug.hpp" />

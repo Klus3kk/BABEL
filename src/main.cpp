@@ -33,9 +33,6 @@ float lastX = WIDTH / 2.0f;
 float lastY = HEIGHT / 2.0f;
 bool firstMouse = true;
 
-bool showDebugInfo = false;
-bool hKeyPressed = false;
-
 // Portal controls
 static bool portalTogglePressed = false;
 static bool recursivePortalsEnabled = true;
@@ -103,7 +100,6 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
     glm::vec3 teleportPos;
     if (recursivePortalsEnabled && portalSystem.checkPortalCollision(oldCameraPos, cameraPos, teleportPos)) {
         cameraPos = teleportPos;
-        std::cout << "🌀 TELEPORTED through portal!" << std::endl;
     }
 
     // Portal toggle
@@ -111,20 +107,9 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         portalTogglePressed = true;
         recursivePortalsEnabled = !recursivePortalsEnabled;
         portalSystem.setEnabled(recursivePortalsEnabled);
-        std::cout << "🌀 Portals: " << (recursivePortalsEnabled ? "ON" : "OFF") << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
         portalTogglePressed = false;
-    }
-
-    // Debug toggle
-    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS && !hKeyPressed) {
-        hKeyPressed = true;
-        showDebugInfo = !showDebugInfo;
-        std::cout << "🔧 Debug: " << (showDebugInfo ? "ON" : "OFF") << std::endl;
-    }
-    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE) {
-        hKeyPressed = false;
     }
 }
 
@@ -156,14 +141,20 @@ int main() {
         return -1;
     }
 
+    // PROPER RENDER STATE SETUP
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDisable(GL_CULL_FACE);  // Disable culling to fix missing faces
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     srand(static_cast<unsigned int>(time(nullptr)));
 
     std::cout << "🏛️ BABEL - RECURSIVE PORTALS VERSION" << std::endl;
 
-    // Load shaders
-    Shader basicShader("shaders/book.vert", "shaders/book.frag");
-    Shader portalShader("shaders/portal.vert", "shaders/portal.frag");
+    // PROPER SHADER ARCHITECTURE
+    Shader standardShader("shaders/standard.vert", "shaders/standard.frag");  // Normal objects
+    Shader lightShader("shaders/light.vert", "shaders/light.frag");           // Light sources
+    Shader portalShader("shaders/portal.vert", "shaders/portal.frag");        // Portals only
 
     // Load textures and models
     TextureManager::loadAllTextures();
@@ -322,7 +313,6 @@ int main() {
     std::cout << "💡 LIBRARY LIGHTING..." << std::endl;
     lightingManager.setupLibraryLighting(roomRadius, roomHeight);
 
-
     // Setup RECURSIVE portals
     PortalSystem portalSystem;
     std::cout << "🌀 RECURSIVE PORTALS..." << std::endl;
@@ -341,7 +331,7 @@ int main() {
         std::cout << "Added portal " << i << " at angle " << glm::degrees(angle) << "°" << std::endl;
     }
 
-    // Connect portals - VERIFY CONNECTIONS
+    // Connect portals
     portalSystem.connectPortals(0, 2); // North <-> South
     portalSystem.connectPortals(1, 3); // East <-> West
 
@@ -350,14 +340,13 @@ int main() {
     std::cout << "Portal 1 (East) <-> Portal 3 (West)" << std::endl;
 
     // Set portal quality and recursion
-    portalSystem.setQuality(512);        // Reduced from 768 for better performance
-    portalSystem.setRecursionDepth(2);   // Reduced from 4 to 2 levels
+    portalSystem.setQuality(512);
+    portalSystem.setRecursionDepth(2);
 
     std::cout << "\n🎮 RECURSIVE CONTROLS:" << std::endl;
     std::cout << "  WASD + Mouse - Move" << std::endl;
     std::cout << "  Space/Ctrl - Up/Down" << std::endl;
     std::cout << "  P - Toggle portals" << std::endl;
-    std::cout << "  H - Debug" << std::endl;
     std::cout << "\n✅ RECURSIVE FEATURES:" << std::endl;
     std::cout << "  🌀 INFINITE PORTAL RECURSION" << std::endl;
     std::cout << "  🔄 PORTALS WITHIN PORTALS" << std::endl;
@@ -372,52 +361,67 @@ int main() {
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
 
-    // RECURSIVE RENDER FUNCTION
+    // PROPER RENDER FUNCTION WITH SEPARATED SHADERS
     auto renderSceneFunc = [&](const glm::mat4& view, const glm::mat4& projection) {
-        // Render main scene objects
-        basicShader.use();
-        basicShader.setMat4("view", &view[0][0]);
-        basicShader.setMat4("projection", &projection[0][0]);
-
-        // Extract camera position from view matrix for lighting
+        // Extract camera position from view matrix
         glm::mat4 invView = glm::inverse(view);
         glm::vec3 currentCameraPos = glm::vec3(invView[3]);
-        basicShader.setVec3("viewPos", currentCameraPos.x, currentCameraPos.y, currentCameraPos.z);
 
-        lightingManager.bindToShader(basicShader);
+        // 1. RENDER STANDARD OBJECTS (books, walls, floors, columns, bookshelves)
+        standardShader.use();
+        standardShader.setMat4("view", &view[0][0]);
+        standardShader.setMat4("projection", &projection[0][0]);
+        standardShader.setVec3("viewPos", currentCameraPos.x, currentCameraPos.y, currentCameraPos.z);
+
+        lightingManager.bindToShader(standardShader);
 
         for (const auto& obj : scene.objects) {
-            // Bind textures based on model
+            // Skip torches - they use light shader
+            if (obj.model == torchModel.get()) continue;
+
+            // Bind appropriate textures for each object type
             if (obj.model == bookModel.get()) {
-                TextureManager::bindTextureForObject("book", basicShader);
+                TextureManager::bindTextureForObject("book", standardShader);
             }
             else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) {
-                TextureManager::bindTextureForObject("bookshelf", basicShader);
+                TextureManager::bindTextureForObject("bookshelf", standardShader);
             }
             else if (obj.model == columnModel.get()) {
-                TextureManager::bindTextureForObject("column", basicShader);
+                TextureManager::bindTextureForObject("column", standardShader);
             }
             else if (obj.model == floorModel.get()) {
-                TextureManager::bindTextureForObject("floor", basicShader);
+                TextureManager::bindTextureForObject("floor", standardShader);
             }
             else if (obj.model == wallModel.get()) {
-                TextureManager::bindTextureForObject("wall", basicShader);
+                TextureManager::bindTextureForObject("wall", standardShader);
             }
             else if (obj.model == ceilingModel.get()) {
-                TextureManager::bindTextureForObject("ceiling", basicShader);
-            }
-            else if (obj.model == torchModel.get()) {
-                TextureManager::bindTextureForObject("torch", basicShader);
+                TextureManager::bindTextureForObject("ceiling", standardShader);
             }
             else if (obj.model == doorFrameModel.get()) {
-                TextureManager::bindTextureForObject("doorframe", basicShader);
+                TextureManager::bindTextureForObject("doorframe", standardShader);
             }
 
-            basicShader.setMat4("model", &obj.modelMatrix[0][0]);
+            standardShader.setMat4("model", &obj.modelMatrix[0][0]);
             obj.model->draw();
         }
 
-        // CRITICAL: Render portal surfaces within the scene for recursion
+        // 2. RENDER LIGHT SOURCES (torches) with emissive shader
+        lightShader.use();
+        lightShader.setMat4("view", &view[0][0]);
+        lightShader.setMat4("projection", &projection[0][0]);
+        lightShader.setVec3("viewPos", currentCameraPos.x, currentCameraPos.y, currentCameraPos.z);
+        lightShader.setFloat("time", currentFrame);
+
+        for (const auto& obj : scene.objects) {
+            if (obj.model == torchModel.get()) {
+                TextureManager::bindTextureForObject("torch", lightShader);
+                lightShader.setMat4("model", &obj.modelMatrix[0][0]);
+                obj.model->draw();
+            }
+        }
+
+        // 3. RENDER PORTALS (if enabled)
         if (recursivePortalsEnabled) {
             portalSystem.renderPortalSurfaces(portalShader, view, projection, currentCameraPos, currentFrame);
         }
@@ -457,29 +461,13 @@ int main() {
         glClearColor(0.02f, 0.015f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // RECURSIVE PORTAL RENDERING - This creates the infinite effect!
+        // RECURSIVE PORTAL RENDERING
         if (recursivePortalsEnabled) {
-            // Add frame synchronization to prevent glitches
-            glFlush();
             portalSystem.renderPortalViews(renderSceneFunc, cameraPos, cameraFront, cameraUp, projection);
-            glFlush();
         }
 
-        // Render main scene (which also renders portal surfaces)
+        // Render main scene
         renderSceneFunc(view, projection);
-
-        // Debug - Print portal info
-        if (showDebugInfo) {
-            static float debugTimer = 0.0f;
-            debugTimer += deltaTime;
-            if (debugTimer >= 2.0f) {
-                std::cout << "FPS: " << (1.0f / deltaTime) << " | Objects: " << scene.objects.size()
-                    << " | Recursion: " << portalSystem.getRecursionDepth() << std::endl;
-                std::cout << "Portals: " << portalSystem.getPortalCount() << " | Active: "
-                    << (recursivePortalsEnabled ? "YES" : "NO") << std::endl;
-                debugTimer = 0.0f;
-            }
-        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();

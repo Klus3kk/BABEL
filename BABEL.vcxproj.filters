@@ -41,16 +41,22 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\book.frag">
+    <None Include="shaders\light.frag">
       <Filter>shaders</Filter>
     </None>
-    <None Include="shaders\book.vert">
+    <None Include="shaders\light.vert">
       <Filter>shaders</Filter>
     </None>
     <None Include="shaders\portal.vert">
       <Filter>shaders</Filter>
     </None>
     <None Include="shaders\portal.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\standard.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\standard.frag">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

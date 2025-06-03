@@ -155,64 +155,28 @@ void PortalSystem::renderPortalViews(
 
 
 
+// src/portals.cpp - EMERGENCY FIX: Prevent brightness accumulation
+
 void PortalSystem::renderPortalViewsRecursive(
     const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
     const glm::mat4& projection, int recursionDepth) {
 
-    // Stop recursion at max depth
-    if (recursionDepth >= maxRecursionDepth) return;
+    // EMERGENCY: Reduce recursion depth to prevent brightness buildup
+    if (recursionDepth >= 1) return; // Changed from maxRecursionDepth to 1
 
-    // Save current state
+    // Save current OpenGL state
     GLint viewport[4];
     GLint currentFramebuffer;
     glGetIntegerv(GL_VIEWPORT, viewport);
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFramebuffer);
 
-    // Store current OpenGL state to restore later
     GLboolean depthTest, blend, cullFace;
     glGetBooleanv(GL_DEPTH_TEST, &depthTest);
     glGetBooleanv(GL_BLEND, &blend);
     glGetBooleanv(GL_CULL_FACE, &cullFace);
 
-    // FIRST PASS: Render deeper recursion levels for all portals
-    if (recursionDepth < maxRecursionDepth - 1) {
-        for (size_t i = 0; i < portals.size(); i++) {
-            auto& portal = portals[i];
-            if (!portal.active || portal.destinationPortalId < 0) continue;
-
-            const Portal& destPortal = portals[portal.destinationPortalId];
-
-            // Calculate virtual camera view matrix using the fixed function
-            glm::mat4 virtualView = calculatePortalViewMatrix(portal, destPortal, cameraPos, cameraFront, cameraUp);
-
-            // Extract virtual camera position from view matrix
-            glm::mat4 invView = glm::inverse(virtualView);
-            glm::vec3 virtualCameraPos = glm::vec3(invView[3]);
-
-            // Keep the same forward direction for consistency
-            glm::vec3 virtualCameraFront = cameraFront;
-
-            // For opposite facing portals, flip the direction
-            if (glm::dot(portal.normal, destPortal.normal) < -0.9f) {
-                virtualCameraFront = -virtualCameraFront;
-            }
-
-            // Create projection with correct aspect ratio
-            float portalAspectRatio = portal.width / portal.height;
-            glm::mat4 portalProjection = glm::perspective(
-                glm::radians(45.0f),
-                portalAspectRatio,
-                0.1f, 100.0f
-            );
-
-            // Render deeper level with virtual camera position
-            renderPortalViewsRecursive(renderScene, virtualCameraPos, virtualCameraFront, cameraUp,
-                portalProjection, recursionDepth + 1);
-        }
-    }
-
-    // SECOND PASS: Render current level portal views
+    // RENDER ONLY SINGLE LEVEL - NO RECURSIVE CALLS
     for (size_t i = 0; i < portals.size(); i++) {
         auto& portal = portals[i];
 
@@ -223,7 +187,6 @@ void PortalSystem::renderPortalViewsRecursive(
         // Bind portal framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
 
-        // Ensure framebuffer is complete
         GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
             std::cerr << "Portal framebuffer incomplete during rendering!" << std::endl;
@@ -232,37 +195,30 @@ void PortalSystem::renderPortalViewsRecursive(
 
         glViewport(0, 0, textureSize, textureSize);
 
-        // PROPER CLEAR with consistent background
+        // FIXED: Normal clear color - no brightness boost
         glClearColor(0.02f, 0.015f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Set proper render state
+        // Normal render state
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
+        glEnable(GL_CULL_FACE); // Re-enable culling for performance
 
-        // Calculate view matrix using the FIXED function
+        // FIXED: Return to original FOV to prevent distortion
         glm::mat4 portalView = calculatePortalViewMatrix(portal, destPortal, cameraPos, cameraFront, cameraUp);
-
-        // Create projection with correct aspect ratio
-        float portalAspectRatio = portal.width / portal.height;
         glm::mat4 portalProjection = glm::perspective(
-            glm::radians(45.0f),
-            portalAspectRatio,
+            glm::radians(45.0f), // Back to 45 degrees - 60 was too wide
+            portal.width / portal.height,
             0.1f, 100.0f
         );
 
-        // Render the scene from this portal's perspective
+        // Render the scene ONCE only
         renderScene(portalView, portalProjection);
 
-        // FORCE COMPLETION before next portal
         glFlush();
         glFinish();
-
-        // Unbind framebuffer immediately
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
@@ -280,14 +236,14 @@ void PortalSystem::renderPortalViewsRecursive(
 glm::mat4 PortalSystem::calculatePortalViewMatrix(const Portal& fromPortal, const Portal& toPortal,
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const {
 
-    // MOSTLY FIXED virtual camera position with SMALL positional influence
-    glm::vec3 baseVirtualPos = toPortal.position + (toPortal.normal * -8.0f);
+    // IMPROVED: More responsive virtual camera positioning
+    glm::vec3 baseVirtualPos = toPortal.position + (toPortal.normal * -6.0f); // Reduced from -8.0f
 
-    // Add a SMALL amount of player position influence (only 15%)
+    // Increase player position influence for better responsiveness
     glm::vec3 relativeToPortal = cameraPos - fromPortal.position;
-    glm::vec3 virtualCameraPos = baseVirtualPos + (relativeToPortal * 0.15f);
+    glm::vec3 virtualCameraPos = baseVirtualPos + (relativeToPortal * 0.25f); // Increased from 0.15f
 
-    // Make sure virtual camera stays inside room bounds
+    // Ensure virtual camera stays within reasonable bounds
     float roomRadius = 7.0f;
     glm::vec3 roomCenter = glm::vec3(0.0f, virtualCameraPos.y, 0.0f);
     glm::vec3 offsetFromCenter = virtualCameraPos - roomCenter;
@@ -300,25 +256,26 @@ glm::mat4 PortalSystem::calculatePortalViewMatrix(const Portal& fromPortal, cons
     }
     virtualCameraPos.y = glm::clamp(virtualCameraPos.y, 0.5f, 5.5f);
 
-    // ONLY use camera's viewing direction (cameraFront), NOT position
-    // This means only rotation affects the portal view, not movement
+    // IMPROVED: Better direction handling for portal views
     glm::vec3 portalLookDirection = cameraFront;
 
-    // For opposite-facing portals, flip the direction
-    if (glm::dot(fromPortal.normal, toPortal.normal) < -0.9f) {
+    // Handle opposite-facing portals with proper direction flipping
+    float dotProduct = glm::dot(fromPortal.normal, toPortal.normal);
+    if (dotProduct < -0.8f) { // Opposite facing portals
         portalLookDirection = -cameraFront;
     }
 
-    // Apply STRONGER damping to make rotation changes more noticeable than position
-    float dampingFactor = 0.1f; // Increased for more rotation influence
+    // Increased rotation influence for better responsiveness
+    float dampingFactor = 0.2f; // Increased from 0.1f
     glm::vec3 dampedDirection = glm::mix(toPortal.normal, portalLookDirection, dampingFactor);
     dampedDirection = glm::normalize(dampedDirection);
 
-    // Calculate where the virtual camera should look
+    // Calculate look target
     glm::vec3 lookTarget = virtualCameraPos + dampedDirection * 10.0f;
 
     return glm::lookAt(virtualCameraPos, lookTarget, cameraUp);
 }
+
 
 void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& view, const glm::mat4& projection,
     const glm::vec3& cameraPos, float time) {

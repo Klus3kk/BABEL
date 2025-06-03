@@ -356,6 +356,10 @@ int main() {
         glm::mat4 invView = glm::inverse(view);
         glm::vec3 currentCameraPos = glm::vec3(invView[3]);
 
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glDepthMask(GL_TRUE);
+
         // Rendering the scene 
         standardShader.use();
         standardShader.setMat4("view", &view[0][0]);
@@ -446,7 +450,7 @@ int main() {
 
         // Matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f),
+        glm::mat4 projection = glm::perspective(glm::radians(60.0f),
             static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 100.0f);
 
         // Clear

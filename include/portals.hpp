@@ -14,8 +14,8 @@ struct Portal {
     glm::vec3 right;
 
     // Portal dimensions
-    float width = 3.2f;
-    float height = 6.2f;
+    float width = 6.0f;
+    float height = 6.0f;
 
     // Destination portal connection
     int destinationPortalId = -1;
@@ -71,7 +71,6 @@ private:
         const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const;
 
 public:
-    PortalSystem();
     ~PortalSystem();
 
     // Initialization

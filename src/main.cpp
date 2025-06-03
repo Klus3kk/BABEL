@@ -1,4 +1,4 @@
-﻿// Complete main.cpp for BABEL - Warm Atmospheric Lighting with Moving Torch Sync
+﻿// nvidia and AMD optimus support for hybrid graphics systems
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -80,10 +80,10 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     if (pitch < -89.0f) pitch = -89.0f;
 }
 
-// Enhanced input processing with warm lighting controls
+// Process input for camera movement and portal controls
 void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFront, glm::vec3& cameraUp,
     float deltaTime, LightingManager& lightingManager, PortalSystem& portalSystem) {
-
+	// Handle camera movement and portal toggling
     const float cameraSpeed = 3.0f * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -116,13 +116,11 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         portalTogglePressed = true;
         recursivePortalsEnabled = !recursivePortalsEnabled;
         portalSystem.setEnabled(recursivePortalsEnabled);
-        std::cout << "🌀 Portals " << (recursivePortalsEnabled ? "ENABLED" : "DISABLED") << std::endl;
+        std::cout << "Portals " << (recursivePortalsEnabled ? "ENABLED" : "DISABLED") << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
         portalTogglePressed = false;
     }
-
-    // WARM LIGHTING CONTROLS
 
     // DRAMA MODE - M key (warmer, brighter lighting)
     if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS && !dramaModePressed) {
@@ -130,7 +128,7 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         static bool dramaticMode = false;
         dramaticMode = !dramaticMode;
         lightingManager.setDramaticMode(dramaticMode);
-        std::cout << "🔥 Drama Mode: " << (dramaticMode ? "WARM & BRIGHT" : "NORMAL") << std::endl;
+        std::cout << "Drama Mode: " << (dramaticMode ? "WARM & BRIGHT" : "NORMAL") << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_M) == GLFW_RELEASE) {
         dramaModePressed = false;
@@ -140,18 +138,18 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
     if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
             lightingManager.setTorchIntensity(3.5f);
-            std::cout << "🔥 Torches: BRIGHT & WARM" << std::endl;
+            std::cout << "Torches: BRIGHT & WARM" << std::endl;
         }
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
             lightingManager.setTorchIntensity(1.5f);
-            std::cout << "🔥 Torches: DIM & COZY" << std::endl;
+            std::cout << "Torches: DIM & COZY" << std::endl;
         }
     }
 
     // HELP - H key
     if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS && !helpPressed) {
         helpPressed = true;
-        std::cout << "\n🔥 ===== BABEL WARM LIBRARY CONTROLS ===== 🔥" << std::endl;
+        std::cout << "\n===== BABEL CONTROLS =====" << std::endl;
         std::cout << "MOVEMENT:" << std::endl;
         std::cout << "  WASD + Mouse - Move camera" << std::endl;
         std::cout << "  Space/Ctrl - Up/Down" << std::endl;
@@ -161,10 +159,6 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         std::cout << "  L + ↑ - Bright warm torches" << std::endl;
         std::cout << "  L + ↓ - Dim cozy torches" << std::endl;
         std::cout << "  H - Show this help" << std::endl;
-        std::cout << "\nYou should see:" << std::endl;
-        std::cout << "  🔥 WARM TORCH FLAMES (amber, moving with torches)" << std::endl;
-        std::cout << "  💡 GOLDEN LAMP GLOW (warm white, steady)" << std::endl;
-        std::cout << "  🏛️ WARM STONE ATMOSPHERE (golden ambient)" << std::endl;
         std::cout << "==========================================\n" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE) {
@@ -213,8 +207,8 @@ int main() {
     srand(static_cast<unsigned int>(time(nullptr)));
 
     // Welcome message
-    std::cout << "\n🔥 ===== BABEL WARM LIBRARY ===== 🔥" << std::endl;
-    std::cout << "Loading warm atmospheric lighting..." << std::endl;
+    std::cout << "\n===== BABEL LIBRARY =====" << std::endl;
+    std::cout << "Loading atmospheric lighting..." << std::endl;
 
     // Load shaders
     Shader standardShader("shaders/standard.vert", "shaders/standard.frag");
@@ -240,7 +234,7 @@ int main() {
     const float roomHeight = 6.0f;
     const int numSides = 8;
 
-    std::cout << "🏗️ Building warm atmospheric library..." << std::endl;
+    std::cout << "Building atmospheric library..." << std::endl;
 
     // Floor
     scene.addObject(floorModel.get(),
@@ -260,6 +254,11 @@ int main() {
         float x = roomRadius * cos(angle);
         float z = roomRadius * sin(angle);
         float wallRotation = angle + (i % 2 == 0 ? glm::radians(90.0f) : 0.0f);
+
+        // Rotate specific walls by 180 degrees to fix facing direction of walls (thanks blender 0_o)
+        if (i != 2 && i != 3 && i != 6 && i != 7) {
+            wallRotation += glm::radians(180.0f);
+        }
 
         scene.addObject(wallModel.get(),
             glm::vec3(x, 0.1f, z),
@@ -308,20 +307,20 @@ int main() {
             scale);
     }
 
-    // THE CENTRAL ROTATING LAMP - Golden warm glow
+    // Lamp
     size_t lampIndex = scene.objects.size();
     scene.addObject(lampModel.get(),
-        glm::vec3(0.0f, 7.0f, 0.0f),
+        glm::vec3(0.0f, 8.0f, 0.0f),
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(2.0f, 2.0f, 2.0f));
 
-    // Make the lamp rotate slowly
+    // rotate slowly
     scene.objects[lampIndex].setRotating(true, 0.5f);
 
     // Track torch indices for light position updates
     std::vector<size_t> torchIndices;
 
-    // ORBITING TORCHES around columns - Warm amber flames
+    // Torches orbiting around columns (animation)
     for (int i = 0; i < 4; i++) {
         float columnAngle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
         glm::vec3 columnCenter = glm::vec3(3.2f * cos(columnAngle), 0.0f, 3.2f * sin(columnAngle));
@@ -345,7 +344,7 @@ int main() {
         scene.objects[torchIndex].setRotating(true, 1.0f);
     }
 
-    // Floating books (animated with warm atmosphere)
+    // Floating books (4-type animation)
     for (int i = 0; i < 20; i++) {
         float angle = glm::radians(18.0f * static_cast<float>(i));
         float radius = 1.5f + (i % 4) * 0.7f;
@@ -378,7 +377,7 @@ int main() {
         }
     }
 
-    // Setup WARM lighting system
+    // Setup lighting system
     LightingManager lightingManager;
     lightingManager.setupLibraryLighting(roomRadius, roomHeight);
 
@@ -402,16 +401,6 @@ int main() {
     portalSystem.connectPortals(0, 2); // North <-> South
     portalSystem.connectPortals(1, 3); // East <-> West
 
-    portalSystem.setQuality(512);
-    portalSystem.setRecursionDepth(2);
-
-    std::cout << "WARM SETUP COMPLETE:" << std::endl;
-    std::cout << "- 1 GOLDEN LAMP light at (0, 7, 0) - rotating" << std::endl;
-    std::cout << "- 4 AMBER TORCH lights - moving with orbiting torches" << std::endl;
-    std::cout << "- WARM golden ambient atmosphere" << std::endl;
-    std::cout << "- Light positions sync automatically with torch movement" << std::endl;
-    std::cout << "=====================================\n" << std::endl;
-
     // Camera setup
     glm::vec3 cameraPos = glm::vec3(0.0f, 2.5f, 4.0f);
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -430,17 +419,18 @@ int main() {
         glDepthFunc(GL_LESS);
         glDepthMask(GL_TRUE);
 
-        // RENDER STANDARD OBJECTS WITH WARM LIGHTING
+		// Render standard objects with lighting
         standardShader.use();
         standardShader.setMat4("view", &view[0][0]);
         standardShader.setMat4("projection", &projection[0][0]);
         standardShader.setVec3("viewPos", currentCameraPos.x, currentCameraPos.y, currentCameraPos.z);
         standardShader.setFloat("time", currentFrame);
 
+		// IMPORTANT: Bind lighting to standard shader so they receive cool illuminations
         lightingManager.bindToShader(standardShader);
 
         for (const auto& obj : scene.objects) {
-            // Skip light sources - they use light shader
+			// Skip light sources cuz they are rendered separately
             if (obj.model == torchModel.get() || obj.model == lampModel.get()) continue;
 
             if (obj.model == bookModel.get()) {
@@ -469,15 +459,16 @@ int main() {
             obj.model->draw();
         }
 
-        // RENDER WARM LIGHT SOURCES (TORCHES AND LAMP) - Now affected by lighting
+		// Render light sources (torches and lamps)
         lightShader.use();
         lightShader.setMat4("view", &view[0][0]);
         lightShader.setMat4("projection", &projection[0][0]);
         lightShader.setVec3("viewPos", currentCameraPos.x, currentCameraPos.y, currentCameraPos.z);
         lightShader.setFloat("time", currentFrame);
 
-        // IMPORTANT: Bind lighting to light shader so they receive warm illumination
+        // IMPORTANT: Binding lighting to light shader so they receive warm illumination
         lightingManager.bindToShader(lightShader);
+
 
         for (const auto& obj : scene.objects) {
             if (obj.model == torchModel.get()) {
@@ -492,11 +483,11 @@ int main() {
             }
         }
 
-        // RENDER PORTALS
+		// render portals if enabled
         if (recursivePortalsEnabled) {
             portalSystem.renderPortalSurfaces(portalShader, view, projection, currentCameraPos, currentFrame);
         }
-        };
+    };
 
     // Main render loop
     while (!glfwWindowShouldClose(window)) {
@@ -517,7 +508,7 @@ int main() {
 
         scene.update(deltaTime);
 
-        // *** CRITICAL: UPDATE TORCH LIGHT POSITIONS TO FOLLOW MOVING TORCHES ***
+		// update light positions based on torch objects
         std::vector<glm::vec3> currentTorchPositions;
 
         // Extract current torch positions from scene objects
@@ -540,8 +531,8 @@ int main() {
         glm::mat4 projection = glm::perspective(glm::radians(60.0f),
             static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 100.0f);
 
-        // Clear screen with warm dark atmosphere
-        glClearColor(0.01f, 0.008f, 0.005f, 1.0f); // Very dark warm brown
+        // Clear screen with darker atmosphere 
+        glClearColor(0.01f, 0.008f, 0.005f, 1.0f); 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (recursivePortalsEnabled) {
@@ -549,18 +540,14 @@ int main() {
         }
 
         renderSceneFunc(view, projection);
-
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     // Cleanup
-    std::cout << "\n🌟 Cleaning up warm library..." << std::endl;
     portalSystem.cleanup();
     TextureManager::cleanup();
     glfwDestroyWindow(window);
     glfwTerminate();
-
-    std::cout << "✨ BABEL warm library closed" << std::endl;
     return 0;
 }

@@ -2,18 +2,6 @@
 #include <iostream>
 #include <cmath>
 
-
-
-PortalSystem::PortalSystem() {
-    // Create room variations for visual diversity
-    roomVariations = {
-        {glm::vec3(1.0f, 1.0f, 1.0f), 1.0f, 1.0f, glm::vec3(0.0f)},           // Normal
-        {glm::vec3(1.1f, 0.9f, 0.8f), 1.0f, 0.9f, glm::vec3(0.05f, 0.0f, 0.0f)}, // Warm
-        {glm::vec3(0.8f, 0.9f, 1.1f), 1.0f, 0.8f, glm::vec3(0.0f, 0.0f, 0.05f)}, // Cool
-        {glm::vec3(0.9f, 1.1f, 0.9f), 1.0f, 0.9f, glm::vec3(0.0f, 0.05f, 0.0f)}, // Green
-    };
-}
-
 PortalSystem::~PortalSystem() {
     cleanup();
 }
@@ -162,10 +150,10 @@ void PortalSystem::renderPortalViewsRecursive(
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
     const glm::mat4& projection, int recursionDepth) {
 
-    // EMERGENCY: Reduce recursion depth to prevent brightness buildup
-    if (recursionDepth >= 1) return; // Changed from maxRecursionDepth to 1
+    // CHANGE THIS to allow more infinite layers
+    if (recursionDepth >= 3) return; // INCREASED from 1 to 5 for deep infinity effect
 
-    // Save current OpenGL state
+    // Save OpenGL state
     GLint viewport[4];
     GLint currentFramebuffer;
     glGetIntegerv(GL_VIEWPORT, viewport);
@@ -176,10 +164,9 @@ void PortalSystem::renderPortalViewsRecursive(
     glGetBooleanv(GL_BLEND, &blend);
     glGetBooleanv(GL_CULL_FACE, &cullFace);
 
-    // RENDER ONLY SINGLE LEVEL - NO RECURSIVE CALLS
+    // Render each portal view
     for (size_t i = 0; i < portals.size(); i++) {
         auto& portal = portals[i];
-
         if (!portal.active || portal.destinationPortalId < 0) continue;
 
         const Portal& destPortal = portals[portal.destinationPortalId];
@@ -189,32 +176,34 @@ void PortalSystem::renderPortalViewsRecursive(
 
         GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "Portal framebuffer incomplete during rendering!" << std::endl;
+            std::cerr << "Portal framebuffer incomplete!" << std::endl;
             continue;
         }
 
         glViewport(0, 0, textureSize, textureSize);
-
-        // FIXED: Normal clear color - no brightness boost
-        glClearColor(0.02f, 0.015f, 0.04f, 1.0f);
+        glClearColor(0.01f, 0.008f, 0.005f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Normal render state
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
-        glEnable(GL_CULL_FACE); // Re-enable culling for performance
+        glEnable(GL_CULL_FACE);
 
-        // FIXED: Return to original FOV to prevent distortion
+        // Portal view matrix and projection
         glm::mat4 portalView = calculatePortalViewMatrix(portal, destPortal, cameraPos, cameraFront, cameraUp);
         glm::mat4 portalProjection = glm::perspective(
-            glm::radians(45.0f), // Back to 45 degrees - 60 was too wide
-            portal.width / portal.height,
+            glm::radians(60.0f),
+            1.0f, // Wider aspect for your preference
             0.1f, 100.0f
         );
 
-        // Render the scene ONCE only
+        // RECURSIVE CALL - this creates the infinite effect!
+        if (recursionDepth < 2) { // Render portals within portals
+            renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp, portalProjection, recursionDepth + 1);
+        }
+
+        // Render the main scene
         renderScene(portalView, portalProjection);
 
         glFlush();
@@ -222,60 +211,40 @@ void PortalSystem::renderPortalViewsRecursive(
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    // Restore original state
+    // Restore OpenGL state
     glBindFramebuffer(GL_FRAMEBUFFER, currentFramebuffer);
     glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-
     if (depthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
     if (blend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
     if (cullFace) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
 }
 
 
-
 glm::mat4 PortalSystem::calculatePortalViewMatrix(const Portal& fromPortal, const Portal& toPortal,
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const {
 
-    // IMPROVED: More responsive virtual camera positioning
-    glm::vec3 baseVirtualPos = toPortal.position + (toPortal.normal * -6.0f); // Reduced from -8.0f
+    // BETTER positioning for infinite tunnel effect
+    glm::vec3 virtualCameraPos = toPortal.position - (5.0f * toPortal.normal); // MOVED from 3.0f to 5.0f for better depth
 
-    // Increase player position influence for better responsiveness
-    glm::vec3 relativeToPortal = cameraPos - fromPortal.position;
-    glm::vec3 virtualCameraPos = baseVirtualPos + (relativeToPortal * 0.25f); // Increased from 0.15f
+    // Only slight rotation influence
+    glm::vec3 fromRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), fromPortal.normal));
+    glm::vec3 fromUp = glm::normalize(glm::cross(fromPortal.normal, fromRight));
+    glm::vec3 toRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), toPortal.normal));
+    glm::vec3 toUp = glm::normalize(glm::cross(toPortal.normal, toRight));
 
-    // Ensure virtual camera stays within reasonable bounds
-    float roomRadius = 7.0f;
-    glm::vec3 roomCenter = glm::vec3(0.0f, virtualCameraPos.y, 0.0f);
-    glm::vec3 offsetFromCenter = virtualCameraPos - roomCenter;
-    float distanceFromCenter = glm::length(glm::vec2(offsetFromCenter.x, offsetFromCenter.z));
+    float frontRight = glm::dot(cameraFront, fromRight) * 0.1f;  // Minimal rotation
+    float frontUp = glm::dot(cameraFront, fromUp) * 0.1f;
+    float frontForward = glm::dot(cameraFront, fromPortal.normal);
 
-    if (distanceFromCenter > roomRadius) {
-        glm::vec2 direction = glm::normalize(glm::vec2(offsetFromCenter.x, offsetFromCenter.z));
-        virtualCameraPos.x = roomCenter.x + direction.x * roomRadius;
-        virtualCameraPos.z = roomCenter.z + direction.y * roomRadius;
-    }
-    virtualCameraPos.y = glm::clamp(virtualCameraPos.y, 0.5f, 5.5f);
+    glm::vec3 virtualCameraFront =
+        -(frontRight * toRight) +
+        (frontUp * toUp) +
+        (-frontForward * toPortal.normal);
+    virtualCameraFront = glm::normalize(virtualCameraFront);
 
-    // IMPROVED: Better direction handling for portal views
-    glm::vec3 portalLookDirection = cameraFront;
-
-    // Handle opposite-facing portals with proper direction flipping
-    float dotProduct = glm::dot(fromPortal.normal, toPortal.normal);
-    if (dotProduct < -0.8f) { // Opposite facing portals
-        portalLookDirection = -cameraFront;
-    }
-
-    // Increased rotation influence for better responsiveness
-    float dampingFactor = 0.2f; // Increased from 0.1f
-    glm::vec3 dampedDirection = glm::mix(toPortal.normal, portalLookDirection, dampingFactor);
-    dampedDirection = glm::normalize(dampedDirection);
-
-    // Calculate look target
-    glm::vec3 lookTarget = virtualCameraPos + dampedDirection * 10.0f;
-
+    glm::vec3 lookTarget = virtualCameraPos + virtualCameraFront * 5.0f;
     return glm::lookAt(virtualCameraPos, lookTarget, cameraUp);
 }
-
 
 void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& view, const glm::mat4& projection,
     const glm::vec3& cameraPos, float time) {

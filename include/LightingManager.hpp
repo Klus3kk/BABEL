@@ -1,3 +1,4 @@
+// Enhanced LightingManager.hpp - Atmospheric Mystical Library Lighting
 #pragma once
 #include <vector>
 #include <glm/glm.hpp>
@@ -11,14 +12,14 @@ struct PointLight {
     float linear;
     float quadratic;
 
-    // Animation properties
+    // Enhanced animation properties
     bool flickering = false;
     float flickerSpeed = 5.0f;
     float flickerIntensity = 0.3f;
     float baseIntensity;
     float flickerTime = 0.0f;
 
-    // Movement properties
+    // Enhanced movement properties
     bool moving = false;
     glm::vec3 moveCenter;
     float moveRadius = 1.0f;
@@ -48,39 +49,27 @@ public:
     std::vector<PointLight> pointLights;
     std::vector<DirectionalLight> directionalLights;
 
-    // Ambient lighting
-    glm::vec3 ambientColor = glm::vec3(0.15f, 0.1f, 0.2f); // Slight purple tint
-    float ambientStrength = 0.3f;
+    // Ambient lighting with mystical properties
+    glm::vec3 ambientColor = glm::vec3(0.08f, 0.05f, 0.12f); // Deep mystical purple
+    float ambientStrength = 0.15f;
 
-    // LIGHT STRENGTH CONTROLS
-    void setGlobalLightIntensity(float multiplier);
-    void setTorchIntensity(float intensity);
-    void setAmbientDarkness(float darkness); // 0.0 = pitch black, 1.0 = normal
-    void setDramaticMode(bool enabled);
-
-    // Torch-specific controls
-    void increaseTorchFlicker();
-    void decreaseTorchFlicker();
-
-    // Add lights
+    // CORE LIGHTING SETUP
+    void setupLibraryLighting(float roomRadius, float roomHeight);
     void addPointLight(const PointLight& light);
     void addDirectionalLight(const DirectionalLight& light);
-
-    // Setup specific lighting scenarios for the library
-    void setupLibraryLighting(float roomRadius, float roomHeight);
-
-    // Update animated lights
-    void update(float deltaTime);
-
-    // Bind all lights to shader
     void bindToShader(Shader& shader) const;
 
-    // Animation controls
-    void setLightFlickering(int lightIndex, bool enabled, float speed = 5.0f, float intensity = 0.3f);
-    void setLightMoving(int lightIndex, bool enabled, const glm::vec3& center, float radius = 1.0f, float speed = 1.0f);
+    // ADD THIS NEW METHOD:
+    void updateTorchPositions(const std::vector<glm::vec3>& torchPositions);
+    void setTorchIntensity(float intensity);        // Direct torch control
+    void setGlobalLightIntensity(float multiplier); // Scale all lights
+    void setAmbientDarkness(float darkness);       // 0.0 = pitch black, 1.0 = bright
 
-    // Color and intensity controls
+    // COLOR AND AMBIENCE
     void setAmbientColor(const glm::vec3& color, float strength);
     void updatePointLightColor(int lightIndex, const glm::vec3& color);
     void updatePointLightIntensity(int lightIndex, float intensity);
+
+    // LEGACY COMPATIBILITY (keep existing methods)
+    void setDramaticMode(bool enabled);
 };

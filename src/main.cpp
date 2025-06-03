@@ -1,4 +1,4 @@
-﻿// just a small code for NVIDIA GPU usage on laptops with dual graphics, comment this if you don't need it
+﻿// Fixed main.cpp for BABEL - Simple but Effective Atmospheric Lighting
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -38,6 +38,11 @@ bool firstMouse = true;
 static bool portalTogglePressed = false;
 static bool recursivePortalsEnabled = true;
 
+// Simple lighting controls
+static bool dramaModePressed = false;
+static bool mysticalModePressed = false;
+static bool helpPressed = false;
+
 // Global variables for recursive rendering
 float currentFrame = 0.0f;
 glm::vec3 globalCameraPos;
@@ -75,7 +80,7 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     if (pitch < -89.0f) pitch = -89.0f;
 }
 
-// Function to process input and handle camera movement and portal toggling
+// SIMPLE input processing with clear lighting controls
 void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFront, glm::vec3& cameraUp,
     float deltaTime, LightingManager& lightingManager, PortalSystem& portalSystem) {
 
@@ -111,9 +116,58 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         portalTogglePressed = true;
         recursivePortalsEnabled = !recursivePortalsEnabled;
         portalSystem.setEnabled(recursivePortalsEnabled);
+        std::cout << "🌀 Portals " << (recursivePortalsEnabled ? "ENABLED" : "DISABLED") << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
         portalTogglePressed = false;
+    }
+
+    // SIMPLE LIGHTING CONTROLS
+
+    // DRAMA MODE - M key (darker ambient, brighter torches)
+    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS && !dramaModePressed) {
+        dramaModePressed = true;
+        static bool dramaticMode = false;
+        dramaticMode = !dramaticMode;
+        lightingManager.setDramaticMode(dramaticMode);
+        std::cout << "🎭 Drama Mode: " << (dramaticMode ? "ON" : "OFF") << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_RELEASE) {
+        dramaModePressed = false;
+    }
+
+    // TORCH INTENSITY - L key (make torches brighter/dimmer)
+    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+            lightingManager.setTorchIntensity(3.5f);
+            std::cout << "🔥 Torches: BRIGHT" << std::endl;
+        }
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+            lightingManager.setTorchIntensity(1.5f);
+            std::cout << "🔥 Torches: DIM" << std::endl;
+        }
+    }
+
+    // HELP - H key
+    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS && !helpPressed) {
+        helpPressed = true;
+        std::cout << "\n🔥 ===== BABEL SIMPLE CONTROLS ===== 🔥" << std::endl;
+        std::cout << "MOVEMENT:" << std::endl;
+        std::cout << "  WASD + Mouse - Move camera" << std::endl;
+        std::cout << "  Space/Ctrl - Up/Down" << std::endl;
+        std::cout << "  P - Toggle portals" << std::endl;
+        std::cout << "\nLIGHTING:" << std::endl;
+        std::cout << "  M - Drama Mode (darker ambient)" << std::endl;
+        std::cout << "  L + ↑ - Bright torches" << std::endl;
+        std::cout << "  L + ↓ - Dim torches" << std::endl;
+        std::cout << "  H - Show this help" << std::endl;
+        std::cout << "\nYou should see:" << std::endl;
+        std::cout << "  🔥 ORANGE TORCH FLAMES (warm, flickering)" << std::endl;
+        std::cout << "  💡 BLUE LAMP GLOW (cool, steady)" << std::endl;
+        std::cout << "====================================\n" << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE) {
+        helpPressed = false;
     }
 }
 
@@ -124,45 +178,49 @@ int main() {
         return -1;
     }
 
-	// Set GLFW options
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); // Use OpenGL 3.3 core profile
+    // Set GLFW options
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // Use core profile
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	// Create GLFW window
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL", nullptr, nullptr);
+    // Create GLFW window
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "BABEL - Torch vs Lamp Lighting", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
     }
 
-	// Initialize GLEW
-	glfwMakeContextCurrent(window); // Make the window's context current
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); 
-	glfwSetCursorPosCallback(window, mouse_callback); // Set mouse callback for camera rotation
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hide the cursor for first-person view
+    // Initialize GLEW
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW" << std::endl;
         return -1;
     }
 
-	// OpenGL settings
-	glEnable(GL_DEPTH_TEST); // Enable depth testing for 3D rendering
-	glDepthFunc(GL_LESS); // Set depth function to less than
-    glDisable(GL_CULL_FACE);  // Disable culling to fix the ""missing faces"" bug
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Set polygon mode to fill
+    // OpenGL settings
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDisable(GL_CULL_FACE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	// Seed random number generator
+    // Seed random number generator
     srand(static_cast<unsigned int>(time(nullptr)));
 
-	// Load shaders
-    Shader standardShader("shaders/standard.vert", "shaders/standard.frag");  // Normal objects
-    Shader lightShader("shaders/light.vert", "shaders/light.frag");           // Light sources
-    Shader portalShader("shaders/portal.vert", "shaders/portal.frag");        // Portals 
+    // Welcome message
+    std::cout << "\n🔥 ===== BABEL LIGHTING TEST ===== 🔥" << std::endl;
+    std::cout << "Loading models and lighting..." << std::endl;
 
-    // Load textures and models
+    // Load shaders
+    Shader standardShader("shaders/standard.vert", "shaders/standard.frag");
+    Shader lightShader("shaders/light.vert", "shaders/light.frag");
+    Shader portalShader("shaders/portal.vert", "shaders/portal.frag");
+
+    // Load textures and models - INCLUDING THE FUCKING LAMP!
     TextureManager::loadAllTextures();
     auto bookModel = std::make_unique<Model>("assets/models/book.obj");
     auto bookshelfModel = std::make_unique<Model>("assets/models/bookshelf.obj");
@@ -172,7 +230,8 @@ int main() {
     auto ceilingModel = std::make_unique<Model>("assets/models/ceiling.obj");
     auto wallModel = std::make_unique<Model>("assets/models/wall.obj");
     auto torchModel = std::make_unique<Model>("assets/models/torch.obj");
-	auto doorFrameModel = std::make_unique<Model>("assets/models/door.obj");
+    auto lampModel = std::make_unique<Model>("assets/models/lamb.obj");  // THE MISSING LAMP!
+    auto doorFrameModel = std::make_unique<Model>("assets/models/door.obj");
 
     // Create scene
     Scene scene;
@@ -180,21 +239,21 @@ int main() {
     const float roomHeight = 6.0f;
     const int numSides = 8;
 
-    std::cout << "Building the iNfInItE library..." << std::endl;
+    std::cout << "🏗️ Building library with TORCHES and LAMP..." << std::endl;
 
-    // floor
+    // Floor
     scene.addObject(floorModel.get(),
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(0.0f, glm::radians(90.0f), 0.0f),
         glm::vec3(2.8f, 1.0f, 2.8f));
 
-    // ceiling
+    // Ceiling
     scene.addObject(ceilingModel.get(),
         glm::vec3(0.0f, roomHeight + 1.2f, 0.0f),
         glm::vec3(0.0f, glm::radians(105.0f), 0.0f),
         glm::vec3(3.5f, 2.0f, 3.5f));
 
-    // walls
+    // Walls
     for (int i = 0; i < numSides; i++) {
         float angle = glm::radians(360.0f * static_cast<float>(i) / static_cast<float>(numSides));
         float x = roomRadius * cos(angle);
@@ -207,7 +266,7 @@ int main() {
             glm::vec3(0.015f, 0.05f, 0.015f));
     }
 
-    // columns
+    // Columns
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
         float x = 3.2f * cos(angle);
@@ -219,7 +278,7 @@ int main() {
             glm::vec3(1.8f, 3.5f, 1.8f));
     }
 
-    // door framees
+    // Door frames
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(90.0f * static_cast<float>(i));
         float x = roomRadius * 0.85f * cos(angle);
@@ -232,7 +291,7 @@ int main() {
             glm::vec3(1.5f, 1.5f, 1.5f));
     }
 
-	// bookshelves
+    // Bookshelves
     for (int i = 0; i < 4; i++) {
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
         float x = roomRadius * 0.90f * cos(angle);
@@ -248,7 +307,20 @@ int main() {
             scale);
     }
 
-	// spining torches around the columns animated 
+    // THE CENTRAL ROTATING LAMP - This should look DIFFERENT from torches!
+    size_t lampIndex = scene.objects.size();
+    scene.addObject(lampModel.get(),
+        glm::vec3(0.0f, 7.0f, 0.0f),  // High up at 7.0f
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(2.0f, 2.0f, 2.0f));
+
+    // Make the lamp ROTATE
+    scene.objects[lampIndex].setRotating(true, 0.5f); // Slow rotation
+
+    // Track torch indices for light position updates
+    std::vector<size_t> torchIndices;
+
+    // Spinning TORCHES around columns - These should look DIFFERENT from lamp!
     for (int i = 0; i < 4; i++) {
         float columnAngle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
         glm::vec3 columnCenter = glm::vec3(3.2f * cos(columnAngle), 0.0f, 3.2f * sin(columnAngle));
@@ -261,6 +333,8 @@ int main() {
         );
 
         size_t torchIndex = scene.objects.size();
+        torchIndices.push_back(torchIndex); // Track this torch index
+
         scene.addObject(torchModel.get(),
             torchPos,
             glm::vec3(0.0f, columnAngle + glm::radians(90.0f), 0.0f),
@@ -270,7 +344,7 @@ int main() {
         scene.objects[torchIndex].setRotating(true, 1.0f);
     }
 
-    // floating books animated
+    // Floating books (animated)
     for (int i = 0; i < 20; i++) {
         float angle = glm::radians(18.0f * static_cast<float>(i));
         float radius = 1.5f + (i % 4) * 0.7f;
@@ -303,11 +377,11 @@ int main() {
         }
     }
 
-    // Setup lighting
+    // Setup SIMPLE lighting that shows CLEAR difference
     LightingManager lightingManager;
     lightingManager.setupLibraryLighting(roomRadius, roomHeight);
 
-    // Setup recursive portals
+    // Setup portals
     PortalSystem portalSystem;
     portalSystem.initialize();
 
@@ -321,38 +395,33 @@ int main() {
         );
         glm::vec3 normal = glm::vec3(-cos(angle), 0.0f, -sin(angle));
         portalSystem.addPortal(position, normal);
-        //std::cout << "Added portal " << i << " at angle " << glm::degrees(angle) << "°" << std::endl;
     }
 
     // Connect portals
     portalSystem.connectPortals(0, 2); // North <-> South
     portalSystem.connectPortals(1, 3); // East <-> West
 
-    //std::cout << "Portal connections:" << std::endl;
-    //std::cout << "Portal 0 (North) <-> Portal 2 (South)" << std::endl;
-    //std::cout << "Portal 1 (East) <-> Portal 3 (West)" << std::endl;
-
-    // Set portal quality and recursion
     portalSystem.setQuality(512);
     portalSystem.setRecursionDepth(2);
 
-    std::cout << "\nRECURSIVE CONTROLS:" << std::endl;
-    std::cout << "  WASD + Mouse - Move" << std::endl;
-    std::cout << "  Space/Ctrl - Up/Down" << std::endl;
-    std::cout << "  P - Toggle portals" << std::endl;
+    std::cout << "SIMPLE SETUP:" << std::endl;
+    std::cout << "- 1 WHITE LAMP light at (0, 7, 0)" << std::endl;
+    std::cout << "- 4 ORANGE TORCH lights that move with torches" << std::endl;
+    std::cout << "- ZERO ambient light" << std::endl;
+    std::cout << "- Press M to make lights brighter" << std::endl;
+    std::cout << "=====================================\n" << std::endl;
 
     // Camera setup
     glm::vec3 cameraPos = glm::vec3(0.0f, 2.5f, 4.0f);
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    
-	// Initialize time variables
+
+    // Initialize time variables
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
 
-	// Render function for the main scene
+    // Render function
     auto renderSceneFunc = [&](const glm::mat4& view, const glm::mat4& projection) {
-        // Extract camera position from view matrix
         glm::mat4 invView = glm::inverse(view);
         glm::vec3 currentCameraPos = glm::vec3(invView[3]);
 
@@ -360,21 +429,19 @@ int main() {
         glDepthFunc(GL_LESS);
         glDepthMask(GL_TRUE);
 
-        // Rendering the scene 
+        // RENDER STANDARD OBJECTS
         standardShader.use();
         standardShader.setMat4("view", &view[0][0]);
         standardShader.setMat4("projection", &projection[0][0]);
         standardShader.setVec3("viewPos", currentCameraPos.x, currentCameraPos.y, currentCameraPos.z);
+        standardShader.setFloat("time", currentFrame);
 
-		// Set time for animations
         lightingManager.bindToShader(standardShader);
 
-		// RENDER STANDARD OBJECTS (books, shelves, columns, walls, etc.)
         for (const auto& obj : scene.objects) {
-            // Skip torches - they use light shader
-            if (obj.model == torchModel.get()) continue;
+            // Skip light sources - they use light shader
+            if (obj.model == torchModel.get() || obj.model == lampModel.get()) continue;
 
-            // Bind appropriate textures for each object type
             if (obj.model == bookModel.get()) {
                 TextureManager::bindTextureForObject("book", standardShader);
             }
@@ -401,7 +468,7 @@ int main() {
             obj.model->draw();
         }
 
-        // RENDER LIGHT SOURCES (torches) with shader 
+        // RENDER LIGHT SOURCES (TORCHES AND LAMP)
         lightShader.use();
         lightShader.setMat4("view", &view[0][0]);
         lightShader.setMat4("projection", &projection[0][0]);
@@ -414,66 +481,65 @@ int main() {
                 lightShader.setMat4("model", &obj.modelMatrix[0][0]);
                 obj.model->draw();
             }
+            else if (obj.model == lampModel.get()) {
+                TextureManager::bindTextureForObject("lamp", lightShader);
+                lightShader.setMat4("model", &obj.modelMatrix[0][0]);
+                obj.model->draw();
+            }
         }
 
-        // RENDER PORTALS (if enabled)
+        // RENDER PORTALS
         if (recursivePortalsEnabled) {
             portalSystem.renderPortalSurfaces(portalShader, view, projection, currentCameraPos, currentFrame);
         }
-    };
+        };
 
-	// Loop 
+    // Main render loop
     while (!glfwWindowShouldClose(window)) {
-		// Calculate delta time
         currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // Input
         processInput(window, cameraPos, cameraFront, cameraUp, deltaTime, lightingManager, portalSystem);
 
-        // Update globals for recursive rendering
         globalCameraPos = cameraPos;
         globalCameraFront = cameraFront;
 
-        // Update camera
         glm::vec3 direction;
         direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         direction.y = sin(glm::radians(pitch));
         direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         cameraFront = glm::normalize(direction);
 
-        // Update scene
         scene.update(deltaTime);
-        lightingManager.update(deltaTime);
+        //lightingManager.update(deltaTime);
         portalSystem.updateDistances(cameraPos);
 
-        // Matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         glm::mat4 projection = glm::perspective(glm::radians(60.0f),
             static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 100.0f);
 
-        // Clear
-        glClearColor(0.02f, 0.015f, 0.04f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear color and depth buffers
+        // Clear screen with PURE BLACK - only light sources illuminate
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Pure black
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// Portal rendering
         if (recursivePortalsEnabled) {
             portalSystem.renderPortalViews(renderSceneFunc, cameraPos, cameraFront, cameraUp, projection);
         }
 
-        // Render main scene
         renderSceneFunc(view, projection);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-	// Cleaning up the resources
+    // Cleanup
+    std::cout << "\n🌟 Cleaning up..." << std::endl;
     portalSystem.cleanup();
     TextureManager::cleanup();
     glfwDestroyWindow(window);
     glfwTerminate();
 
+    std::cout << "✨ BABEL closed" << std::endl;
     return 0;
 }

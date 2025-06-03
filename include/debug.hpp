@@ -49,12 +49,6 @@ public:
         const std::unique_ptr<Model>& wallModel,
         const std::unique_ptr<Model>& torchModel);
 
-    // OpenGL debug info
-    static void printOpenGLInfo();
-    static void checkOpenGLErrors(const std::string& operation);
-
-    // Memory usage (basic)
-    static void printMemoryUsage();
 
     // Toggle specific debug categories
     static void togglePerformanceStats();
@@ -63,19 +57,4 @@ public:
     static void toggleSceneInfo();
     static void toggleCameraInfo();
 
-    // Print all debug information
-    static void printAllDebugInfo(const glm::vec3& cameraPos, const glm::vec3& cameraFront,
-        float yaw, float pitch, float roomRadius, float roomHeight, int numSides,
-        const Scene& scene, const PortalSystem& portalSystem,
-        const LightingManager& lightingManager,
-        const std::unique_ptr<Model>& bookModel,
-        const std::unique_ptr<Model>& bookshelfModel,
-        const std::unique_ptr<Model>& bookshelf2Model,
-        const std::unique_ptr<Model>& columnModel,
-        const std::unique_ptr<Model>& floorModel,
-        const std::unique_ptr<Model>& lampModel,
-        const std::unique_ptr<Model>& portalModel,
-        const std::unique_ptr<Model>& ceilingModel,
-        const std::unique_ptr<Model>& wallModel,
-        const std::unique_ptr<Model>& torchModel);
 };

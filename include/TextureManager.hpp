@@ -23,5 +23,4 @@ public:
 
 private:
     static std::unordered_map<std::string, GLuint> textures;
-    static GLuint createFallbackTexture(unsigned char r, unsigned char g, unsigned char b);
 };

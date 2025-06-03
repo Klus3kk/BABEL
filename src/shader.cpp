@@ -1,11 +1,10 @@
-// src/shader.cpp
 #include "shader.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 Shader::Shader(const char* vertexPath, const char* fragmentPath) {
-    // 1. Read shader source code from files
+    // Read shader source code from files
     std::ifstream vShaderFile(vertexPath), fShaderFile(fragmentPath);
     std::stringstream vShaderStream, fShaderStream;
 
@@ -17,23 +16,23 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
     const char* vCode = vertexCode.c_str();
     const char* fCode = fragmentCode.c_str();
 
-    // 2. Compile vertex shader
+    // Compile vertex shader
     GLuint vertex = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex, 1, &vCode, NULL);
     glCompileShader(vertex);
 
-    // 3. Compile fragment shader
+    // Compile fragment shader
     GLuint fragment = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment, 1, &fCode, NULL);
     glCompileShader(fragment);
 
-    // 4. Create shader program and link shaders
+    // Create shader program and link shaders
     ID = glCreateProgram();
     glAttachShader(ID, vertex);
     glAttachShader(ID, fragment);
     glLinkProgram(ID);
 
-    // 5. Clean up shader objects
+    // Clean up shader objects
     glDeleteShader(vertex);
     glDeleteShader(fragment);
 }

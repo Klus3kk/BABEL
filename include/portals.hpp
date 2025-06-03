@@ -45,14 +45,6 @@ struct Portal {
     }
 };
 
-// Room generation parameters for infinite variety
-struct RoomVariation {
-    glm::vec3 colorTint = glm::vec3(1.0f);
-    float scaleMultiplier = 1.0f;
-    float lightIntensityMultiplier = 1.0f;
-    glm::vec3 ambientColorShift = glm::vec3(0.0f);
-};
-
 class PortalSystem {
 private:
     std::vector<Portal> portals;
@@ -60,20 +52,18 @@ private:
     int maxRecursionDepth = 3;
     bool enabled = true;
 
-    std::vector<RoomVariation> roomVariations;
-
-    // Portal geometry generation
+    // Portal geometry management
     void generatePortalGeometry(Portal& portal);
     void cleanupPortalGeometry(Portal& portal);
 
-    // Portal transformation math
+    // Portal transformation calculations
     glm::mat4 calculatePortalViewMatrix(const Portal& fromPortal, const Portal& toPortal,
         const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const;
 
 public:
     ~PortalSystem();
 
-    // Initialization
+    // Initialization and cleanup
     void initialize();
     void cleanup();
 
@@ -81,7 +71,7 @@ public:
     void addPortal(const glm::vec3& position, const glm::vec3& normal);
     void connectPortals(int portal1Id, int portal2Id);
 
-    // State management - THESE WERE MISSING
+    // State management
     void setEnabled(bool enable) { enabled = enable; }
     bool isEnabled() const { return enabled; }
     bool areActive() const { return enabled && !portals.empty(); }
@@ -94,7 +84,7 @@ public:
     void renderPortalSurfaces(Shader& portalShader, const glm::mat4& view, const glm::mat4& projection,
         const glm::vec3& cameraPos, float time);
 
-    // Add this method to the header file (portals.hpp)
+    // Recursive portal rendering for infinite effect
     void renderPortalViewsRecursive(
         const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
         const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
@@ -112,6 +102,4 @@ public:
     size_t getPortalCount() const { return portals.size(); }
     const Portal& getPortal(int index) const { return portals[index]; }
     int getRecursionDepth() const { return maxRecursionDepth; }
-    // Debug
-    void printDebugInfo() const;
 };

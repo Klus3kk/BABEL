@@ -1,5 +1,4 @@
-﻿// Warm LightingManager.cpp - Warmer atmosphere with moving torch lights
-#include "LightingManager.hpp"
+﻿#include "LightingManager.hpp"
 #include <cmath>
 #include <iostream>
 #include <algorithm>
@@ -16,13 +15,13 @@ void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
     pointLights.clear();
     directionalLights.clear();
 
-    std::cout << "Setting up WARM atmospheric lighting..." << std::endl;
+    std::cout << "Setting up atmospheric lighting..." << std::endl;
 
     // Warmer ambient for cozy stone library
     ambientColor = glm::vec3(0.025f, 0.015f, 0.008f); // Warm amber tint
     ambientStrength = 0.12f; // Slightly higher for warmth
 
-    // 1. CENTRAL LAMP - Warm atmospheric light
+    // CENTRAL LAMP - Warm atmospheric light
     PointLight centralLamp(
         glm::vec3(0.0f, 7.0f, 0.0f),
         glm::vec3(1.0f, 0.9f, 0.7f), // Warm white with golden tint
@@ -31,7 +30,7 @@ void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
     );
     addPointLight(centralLamp);
 
-    // 2. TORCH LIGHTS - Warm moving flames (positions will be updated)
+    // TORCH LIGHTS - Warm moving flames (positions will be updated)
     for (int i = 0; i < 4; i++) {
         // Initial positions - will be updated by updateTorchPositions
         float angle = glm::radians(45.0f + 90.0f * static_cast<float>(i));
@@ -50,9 +49,6 @@ void LightingManager::setupLibraryLighting(float roomRadius, float roomHeight) {
         addPointLight(torchLight);
     }
 
-    std::cout << "LAMP: Warm golden light intensity 2.2" << std::endl;
-    std::cout << "TORCHES: Warm amber flames intensity 2.0 (MOVING)" << std::endl;
-    std::cout << "AMBIENT: Warm amber atmosphere" << std::endl;
     std::cout << "Total lights: " << pointLights.size() << std::endl;
 }
 
@@ -63,13 +59,13 @@ void LightingManager::updateTorchPositions(const std::vector<glm::vec3>& torchPo
         pointLights[i + 1].position = torchPositions[i];
         torchesUpdated++;
     }
+    // debug - ignore this 
 
-    // Debug output only occasionally to avoid spam
-    static int updateCount = 0;
-    updateCount++;
-    if (updateCount % 60 == 0) { // Every 60 updates
-        std::cout << "Updated " << torchesUpdated << " torch light positions" << std::endl;
-    }
+    //static int updateCount = 0;
+    //updateCount++;
+    //if (updateCount % 60 == 0) { // Every 60 updates
+    //    std::cout << "Updated " << torchesUpdated << " torch light positions" << std::endl;
+    //}
 }
 
 void LightingManager::bindToShader(Shader& shader) const {
@@ -92,8 +88,6 @@ void LightingManager::bindToShader(Shader& shader) const {
         shader.setFloat(base + ".quadratic", light.quadratic);
     }
 }
-
-// WARM INTENSITY CONTROLS
 
 void LightingManager::setDramaticMode(bool enabled) {
     if (enabled) {
@@ -159,7 +153,6 @@ void LightingManager::setGlobalLightIntensity(float multiplier) {
 }
 
 void LightingManager::setAmbientDarkness(float darkness) {
-    // Keep warm ambient
     float baseStrength = 0.12f;
     ambientStrength = std::max(0.02f, std::min(0.25f, baseStrength - darkness * 0.1f));
 }

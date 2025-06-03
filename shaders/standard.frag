@@ -1,4 +1,3 @@
-// Warm standard.frag - Atmospheric lighting with warm tones
 #version 330 core
 out vec4 FragColor;
 

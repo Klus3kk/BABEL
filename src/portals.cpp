@@ -44,11 +44,6 @@ void PortalSystem::addPortal(const glm::vec3& position, const glm::vec3& normal)
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         std::cerr << "Portal framebuffer not complete! Status: " << status << std::endl;
-
-        // Fallback: create a simple test texture
-        unsigned char testData[4] = { 255, 0, 255, 255 }; // Magenta for debugging
-        glBindTexture(GL_TEXTURE_2D, portal.colorTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, testData);
     }
     else {
         std::cout << "Portal framebuffer created successfully!" << std::endl;
@@ -141,17 +136,13 @@ void PortalSystem::renderPortalViews(
     renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp, projection, 0);
 }
 
-
-
-// src/portals.cpp - EMERGENCY FIX: Prevent brightness accumulation
-
 void PortalSystem::renderPortalViewsRecursive(
     const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
     const glm::mat4& projection, int recursionDepth) {
 
     // CHANGE THIS to allow more infinite layers
-    if (recursionDepth >= 3) return; // INCREASED from 1 to 5 for deep infinity effect
+    if (recursionDepth >= 3) return; 
 
     // Save OpenGL state
     GLint viewport[4];
@@ -224,7 +215,7 @@ glm::mat4 PortalSystem::calculatePortalViewMatrix(const Portal& fromPortal, cons
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const {
 
     // BETTER positioning for infinite tunnel effect
-    glm::vec3 virtualCameraPos = toPortal.position - (5.0f * toPortal.normal); // MOVED from 3.0f to 5.0f for better depth
+    glm::vec3 virtualCameraPos = toPortal.position - (5.0f * toPortal.normal); 
 
     // Only slight rotation influence
     glm::vec3 fromRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), fromPortal.normal));
@@ -255,8 +246,8 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
     portalShader.setMat4("view", &view[0][0]);
     portalShader.setMat4("projection", &projection[0][0]);
     portalShader.setFloat("time", time);
-
-    // MINIMAL STATE CHANGES
+    
+	// Set camera position for portal shader
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
@@ -292,8 +283,7 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
             glBindVertexArray(0);
         }
     }
-
-    // RESTORE STATE
+	// Restore OpenGL state
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
 }
@@ -385,19 +375,4 @@ void PortalSystem::cleanup() {
         cleanupPortalGeometry(portal);
     }
     portals.clear();
-}
-
-void PortalSystem::printDebugInfo() const {
-    std::cout << "\n=== PORTAL SYSTEM DEBUG ===" << std::endl;
-    std::cout << "Portals: " << portals.size() << std::endl;
-    std::cout << "Texture size: " << textureSize << "x" << textureSize << std::endl;
-    std::cout << "Active: " << (areActive() ? "YES" : "NO") << std::endl;
-
-    for (size_t i = 0; i < portals.size(); i++) {
-        const auto& portal = portals[i];
-        std::cout << "Portal " << i << ": pos("
-            << portal.position.x << ", " << portal.position.y << ", " << portal.position.z
-            << ") -> " << portal.destinationPortalId << std::endl;
-    }
-    std::cout << "==========================\n" << std::endl;
 }

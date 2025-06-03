@@ -14,20 +14,6 @@ GLuint Texture::load(const std::string& path, bool flip) {
     int width, height, nrChannels;
     unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
 
-    if (!data) {
-        std::cerr << "[Texture Error] Failed to load: " << path << std::endl;
-
-        // Create a fallback 1x1 magenta texture for debugging
-        unsigned char fallbackPixel[3] = { 255, 0, 255 };
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, fallbackPixel);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        return textureID;
-    }
-
     // Determine format based on channels
     GLenum format = GL_RGB;
     if (nrChannels == 1) format = GL_RED;

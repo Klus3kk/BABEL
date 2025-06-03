@@ -7,16 +7,6 @@
 #include "shader.hpp"
 #include "model.hpp"
 
-// Enhanced animation types for complex behaviors
-enum class AnimationType {
-    MYSTICAL_FLOAT,     // Floating + rotation + pulsing
-    ORBITAL_DANCE,      // Orbiting + floating + rotation
-    GENTLE_SWAY,        // Subtle floating + slow rotation
-    ENERGETIC_SPIN,     // Fast rotation + pulsing + floating
-    MAJESTIC_ORBIT      // Large orbit + all effects
-};
-
-// Enhanced Scene object class with advanced animations
 class SceneObject {
 public:
     const Model* model;
@@ -25,16 +15,13 @@ public:
     glm::vec3 scale;
     glm::mat4 modelMatrix;
 
-    // Basic animation types
+    // Animation types (only the ones actually used)
     bool rotating = false;
-    float rotationSpeed = 0.0f;
-
-    // Advanced animation types
     bool floating = false;
     bool orbiting = false;
     bool pulsing = false;
 
-    // Enhanced animation parameters
+    // Animation parameters
     glm::vec3 basePosition;     // Original position for floating/orbiting
     glm::vec3 orbitCenter;      // Center point for orbital motion
     float orbitRadius = 2.0f;   // Radius of orbit
@@ -43,8 +30,9 @@ public:
     float floatSpeed = 1.0f;    // Speed of floating motion
     float pulseAmplitude = 0.1f; // Scale variation for pulsing
     float pulseSpeed = 2.0f;    // Speed of pulsing
+    float rotationSpeed = 0.0f; // Rotation speed
 
-    // Enhanced animation time tracking
+    // Animation time tracking
     float animationTime = 0.0f;
     float orbitTime = 0.0f;
     float floatTime = 0.0f;
@@ -61,18 +49,14 @@ public:
     void update(float deltaTime);
     void rotate(float yawAmount, float pitchAmount = 0.0f, float rollAmount = 0.0f);
 
-    // Basic animation control methods
+    // Animation control methods (only the ones used)
     void setRotating(bool enabled, float speed = 1.0f);
     void setFloating(bool enabled, float amplitude = 0.3f, float speed = 1.0f);
     void setOrbiting(bool enabled, const glm::vec3& center, float radius = 2.0f, float speed = 1.0f);
     void setPulsing(bool enabled, float amplitude = 0.1f, float speed = 2.0f);
-
-    // Advanced animation methods
-    void setComplexAnimation(AnimationType type);
-    void addRandomVariation();
 };
 
-// Enhanced Scene class to manage all objects with batch operations
+// Scene class to manage all objects
 class Scene {
 public:
     std::vector<SceneObject> objects;
@@ -85,12 +69,6 @@ public:
 
     void update(float deltaTime);
     void draw(Shader& shader) const;
-
-    // Enhanced batch animation methods
-    void setBookAnimations();
-    void adjustAnimationSpeed(float speedMultiplier);
-    void pauseAnimations();
-    void resumeAnimations();
 
     // Utility methods
     size_t getObjectCount() const { return objects.size(); }

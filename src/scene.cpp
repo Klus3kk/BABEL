@@ -2,7 +2,6 @@
 #include <cmath>
 #include <cstdlib>
 
-// SceneObject implementation
 SceneObject::SceneObject(const Model* modelPtr, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& scl)
     : model(modelPtr), position(pos), rotation(rot), scale(scl), basePosition(pos), orbitCenter(pos) {
     updateModelMatrix();
@@ -33,7 +32,7 @@ void SceneObject::update(float deltaTime) {
         position.x = x;
         position.z = z;
 
-        // Optional: Make orbiting objects face their movement direction
+        // Make orbiting objects face their movement direction
         rotation.y = orbitTime + glm::radians(90.0f);
     }
 
@@ -83,7 +82,6 @@ void SceneObject::setRotating(bool enabled, float speed) {
     rotationSpeed = speed;
 }
 
-// NEW: Animation control methods
 void SceneObject::setFloating(bool enabled, float amplitude, float speed) {
     floating = enabled;
     floatAmplitude = amplitude;

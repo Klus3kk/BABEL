@@ -32,10 +32,10 @@ void DebugSystem::initialize() {
 void DebugSystem::toggleDebugMode() {
     debugMode = !debugMode;
     if (debugMode) {
-        std::cout << "\n*** DEBUG MODE ACTIVATED ***" << std::endl;
+        std::cout << "\n=== DEBUG MODE ACTIVATED ===" << std::endl;
     }
     else {
-        std::cout << "\n*** DEBUG MODE DEACTIVATED ***" << std::endl;
+        std::cout << "\n=== DEBUG MODE DEACTIVATED ===" << std::endl;
     }
 }
 
@@ -125,43 +125,6 @@ void DebugSystem::printSceneInfo(const Scene& scene,
     std::cout << "==================" << std::endl;
 }
 
-void DebugSystem::printOpenGLInfo() {
-    std::cout << "\n=== OPENGL INFO ===" << std::endl;
-    std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
-    std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
-    std::cout << "Version: " << glGetString(GL_VERSION) << std::endl;
-    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-
-    GLint maxTextureUnits, maxVertexAttribs;
-    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxTextureUnits);
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxVertexAttribs);
-
-    std::cout << "Max texture units: " << maxTextureUnits << std::endl;
-    std::cout << "Max vertex attributes: " << maxVertexAttribs << std::endl;
-    std::cout << "===================" << std::endl;
-}
-
-void DebugSystem::checkOpenGLErrors(const std::string& operation) {
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cout << "OpenGL Error in " << operation << ": ";
-        switch (error) {
-        case GL_INVALID_ENUM: std::cout << "GL_INVALID_ENUM"; break;
-        case GL_INVALID_VALUE: std::cout << "GL_INVALID_VALUE"; break;
-        case GL_INVALID_OPERATION: std::cout << "GL_INVALID_OPERATION"; break;
-        case GL_OUT_OF_MEMORY: std::cout << "GL_OUT_OF_MEMORY"; break;
-        default: std::cout << "Unknown error " << error; break;
-        }
-        std::cout << std::endl;
-    }
-}
-
-void DebugSystem::printMemoryUsage() {
-    std::cout << "\n=== MEMORY USAGE ===" << std::endl;
-    std::cout << "Basic memory tracking not implemented" << std::endl;
-    std::cout << "====================" << std::endl;
-}
-
 void DebugSystem::togglePerformanceStats() {
     showPerformanceStats = !showPerformanceStats;
     std::cout << "Performance stats: " << (showPerformanceStats ? "ON" : "OFF") << std::endl;
@@ -185,46 +148,4 @@ void DebugSystem::toggleSceneInfo() {
 void DebugSystem::toggleCameraInfo() {
     showCameraInfo = !showCameraInfo;
     std::cout << "Camera info: " << (showCameraInfo ? "ON" : "OFF") << std::endl;
-}
-
-void DebugSystem::printAllDebugInfo(const glm::vec3& cameraPos, const glm::vec3& cameraFront,
-    float yaw, float pitch, float roomRadius, float roomHeight, int numSides,
-    const Scene& scene, const PortalSystem& portalSystem,
-    const LightingManager& lightingManager,
-    const std::unique_ptr<Model>& bookModel,
-    const std::unique_ptr<Model>& bookshelfModel,
-    const std::unique_ptr<Model>& bookshelf2Model,
-    const std::unique_ptr<Model>& columnModel,
-    const std::unique_ptr<Model>& floorModel,
-    const std::unique_ptr<Model>& lampModel,
-    const std::unique_ptr<Model>& portalModel,
-    const std::unique_ptr<Model>& ceilingModel,
-    const std::unique_ptr<Model>& wallModel,
-    const std::unique_ptr<Model>& torchModel) {
-
-    if (!debugMode) return;
-
-    std::cout << "\n" << std::string(50, '=') << std::endl;
-    std::cout << "         BABEL DEBUG INFORMATION" << std::endl;
-    std::cout << std::string(50, '=') << std::endl;
-
-    // Room info
-    std::cout << "\n=== ROOM CONFIGURATION ===" << std::endl;
-    std::cout << "Radius: " << roomRadius << ", Height: " << roomHeight << std::endl;
-
-    // Portal info
-    if (showPortalInfo) {
-        std::cout << "\n=== PORTAL INFO ===" << std::endl;
-        std::cout << "Portals: " << portalSystem.getPortalCount() << std::endl;
-        std::cout << "Active: " << (portalSystem.areActive() ? "YES" : "NO") << std::endl;
-        std::cout << "===================" << std::endl;
-    }
-
-    // Debug info based on toggle states
-    printCameraInfo(cameraPos, cameraFront, yaw, pitch);
-    printLightingInfo(lightingManager);
-    printSceneInfo(scene, bookModel, bookshelfModel, bookshelf2Model, columnModel,
-        floorModel, lampModel, portalModel, ceilingModel, wallModel, torchModel);
-
-    std::cout << "\n" << std::string(50, '=') << std::endl;
 }

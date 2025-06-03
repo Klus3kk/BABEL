@@ -58,8 +58,6 @@ public:
     void addPointLight(const PointLight& light);
     void addDirectionalLight(const DirectionalLight& light);
     void bindToShader(Shader& shader) const;
-
-    // ADD THIS NEW METHOD:
     void updateTorchPositions(const std::vector<glm::vec3>& torchPositions);
     void setTorchIntensity(float intensity);        // Direct torch control
     void setGlobalLightIntensity(float multiplier); // Scale all lights

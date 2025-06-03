@@ -22,33 +22,32 @@ GLuint TextureManager::getTexture(const std::string& name) {
         return it->second;
     }
 
-    std::cerr << "Warning: Texture '" << name << "' not found, using fallback!" << std::endl;
-    return createFallbackTexture(128, 128, 128); // Gray fallback
+    std::cerr << "Warning: Texture '" << name << "' not found!" << std::endl;
 }
 
 void TextureManager::loadAllTextures() {
     std::cout << "Loading all textures..." << std::endl;
 
-    // Load book textures (PNG files)
+    // Load book textures 
     loadTexture("book_basecolor", "assets/textures/book-textures/book_basecolor.png");
     loadTexture("book_roughness", "assets/textures/book-textures/book_roughness.png");
     loadTexture("book_metallic", "assets/textures/book-textures/book_metallic.png");
 
-    // Load ceiling texture (JPEG file)
+    // Load ceiling texture 
     loadTexture("ceiling_basecolor", "assets/textures/ceiling-textures/plafondbleu.jpeg");
 
-    // Load column textures (PNG files)
+    // Load column textures 
     loadTexture("column_basecolor", "assets/textures/column-textures/pillar_skfb_col.png");
     loadTexture("column_roughness", "assets/textures/column-textures/pillar_skfb_r.png");
     loadTexture("column_metallic", "assets/textures/column-textures/pillar_skfb_m.png");
 
-    // Load floor texture (JPG file)
+    // Load floor texture 
     loadTexture("floor_basecolor", "assets/textures/floor-textures/1.jpg");
 
-    // Load stone textures for walls (using rock_tile_floor)
+    // Load stone textures for walls 
     loadTexture("wall_basecolor", "assets/textures/stone-textures/rock_tile_floor_diff_1k.jpg");
 
-    // Load stone textures for doorframes (using gray_rocks)
+    // Load stone textures for doorframes 
     loadTexture("doorframe_basecolor", "assets/textures/stone-textures/gray_rocks_diff_1k.jpg");
 
     // Load wood textures for bookshelves
@@ -106,7 +105,7 @@ void TextureManager::bindTextureForObject(const std::string& objectType, Shader&
         shader.setInt("metallicMap", 2);
     }
     else if (objectType == "floor") {
-        // Use the specific floor texture (1.jpg)
+        // Use the specific floor texture 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, getTexture("floor_basecolor"));
         shader.setInt("baseColorMap", 0);
@@ -173,7 +172,6 @@ void TextureManager::bindTextureForObject(const std::string& objectType, Shader&
         glBindTexture(GL_TEXTURE_2D, getTexture("column_metallic")); // Reuse
         shader.setInt("metallicMap", 2);
     }
-    // ADD THIS SECTION - Torch texture binding
     else if (objectType == "torch") {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, getTexture("torch_basecolor"));
@@ -187,22 +185,6 @@ void TextureManager::bindTextureForObject(const std::string& objectType, Shader&
         glBindTexture(GL_TEXTURE_2D, getTexture("column_metallic")); // Reuse for metallic
         shader.setInt("metallicMap", 2);
     }
-}
-
-GLuint TextureManager::createFallbackTexture(unsigned char r, unsigned char g, unsigned char b) {
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-    unsigned char data[] = { r, g, b, 255 };
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    return textureID;
 }
 
 void TextureManager::cleanup() {

@@ -1,4 +1,3 @@
-// Atmospheric light.frag - Light sources that match the dark library aesthetic
 #version 330 core
 out vec4 FragColor;
 

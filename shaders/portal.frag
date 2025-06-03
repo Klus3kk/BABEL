@@ -1,4 +1,3 @@
-// shaders/portal.frag - EMERGENCY FIX: Remove brightness multiplication
 #version 330 core
 out vec4 FragColor;
 
@@ -8,7 +7,7 @@ uniform sampler2D portalView;
 uniform float time;
 uniform bool portalActive = true;
 
-// MINIMAL portal effects - no brightness multiplication
+// Minimal portal effect shader
 vec3 applyMinimalPortalEffects(vec3 portalColor, vec2 uv) {
     if (!portalActive) {
         return vec3(0.02, 0.02, 0.05);
@@ -24,9 +23,7 @@ vec3 applyMinimalPortalEffects(vec3 portalColor, vec2 uv) {
     // Only apply very subtle edge darkening
     float vignette = 1.0 - distFromCenter * 0.1; // Reduced effect
     portalColor *= vignette;
-    
-    // REMOVED: All additive effects and shimmer
-    
+
     return portalColor;
 }
 
@@ -36,10 +33,7 @@ void main() {
     // Sample the portal view texture directly
     vec3 portalColor = texture(portalView, uv).rgb;
     
-    // Apply MINIMAL effects only
     portalColor = applyMinimalPortalEffects(portalColor, uv);
-    
-    // NO brightness boost or minimum values
     
     // Simple alpha
     float alpha = 1.0;

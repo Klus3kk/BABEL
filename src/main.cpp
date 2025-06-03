@@ -1,4 +1,4 @@
-﻿// nvidia and AMD optimus support for hybrid graphics systems
+﻿// Force discrete GPU on laptops with hybrid graphics
 extern "C" {
     __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -22,6 +22,7 @@ extern "C" {
 #include "TextureManager.hpp"
 #include "LightingManager.hpp"
 #include "portals.hpp"
+#include "debug.hpp"
 
 // Application constants
 namespace Config {
@@ -45,9 +46,14 @@ bool firstMouse = true;
 static bool portalTogglePressed = false;
 static bool dramaModePressed = false;
 static bool helpPressed = false;
+static bool debugTogglePressed = false;
+static bool f1Pressed = false;
+static bool f2Pressed = false;
+static bool f3Pressed = false;
+static bool f4Pressed = false;
+static bool f5Pressed = false;
 static bool recursivePortalsEnabled = true;
 
-// Function declarations
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFront,
@@ -56,12 +62,10 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
 void setupScene(Scene& scene, const std::vector<std::unique_ptr<Model>>& models,
     std::vector<size_t>& torchIndices);
 
-// Function for handling window resizing
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-// Mouse callback for camera rotation
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
@@ -87,7 +91,6 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
     if (pitch < -89.0f) pitch = -89.0f;
 }
 
-// Process input for camera movement and controls
 void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFront,
     glm::vec3& cameraUp, float deltaTime, LightingManager& lightingManager,
     PortalSystem& portalSystem) {
@@ -155,7 +158,7 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         }
     }
 
-    // Help display
+    // Help display (H key - as originally intended)
     if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS && !helpPressed) {
         helpPressed = true;
         std::cout << "\n===== BABEL CONTROLS =====" << std::endl;
@@ -165,13 +168,76 @@ void processInput(GLFWwindow* window, glm::vec3& cameraPos, glm::vec3& cameraFro
         std::cout << "  P - Toggle portals" << std::endl;
         std::cout << "\nLIGHTING:" << std::endl;
         std::cout << "  M - Drama Mode (warmer & brighter)" << std::endl;
-        std::cout << "  L + ↑ - Bright warm torches" << std::endl;
-        std::cout << "  L + ↓ - Dim cozy torches" << std::endl;
+        std::cout << "  L + up key - Bright warm torches" << std::endl;
+        std::cout << "  L + down key - Dim cozy torches" << std::endl;
+        std::cout << "\nDEBUG:" << std::endl;
+        std::cout << "  F10 - Toggle debug mode" << std::endl;
+        std::cout << "  F1 - Performance stats" << std::endl;
+        std::cout << "  F2 - Portal information" << std::endl;
+        std::cout << "  F3 - Lighting information" << std::endl;
+        std::cout << "  F4 - Scene information" << std::endl;
+        std::cout << "  F5 - Camera information" << std::endl;
         std::cout << "  H - Show this help" << std::endl;
         std::cout << "==============================\n" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE) {
         helpPressed = false;
+    }
+
+    // DEBUG SYSTEM CONTROLS
+
+    // Debug mode toggle (F10)
+    if (glfwGetKey(window, GLFW_KEY_F10) == GLFW_PRESS && !debugTogglePressed) {
+        debugTogglePressed = true;
+        DebugSystem::toggleDebugMode();
+    }
+    if (glfwGetKey(window, GLFW_KEY_F10) == GLFW_RELEASE) {
+        debugTogglePressed = false;
+    }
+
+    // Performance stats toggle (F1)
+    if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS && !f1Pressed) {
+        f1Pressed = true;
+        DebugSystem::togglePerformanceStats();
+    }
+    if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_RELEASE) {
+        f1Pressed = false;
+    }
+
+    // Portal info toggle (F2)
+    if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS && !f2Pressed) {
+        f2Pressed = true;
+        DebugSystem::togglePortalInfo();
+    }
+    if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_RELEASE) {
+        f2Pressed = false;
+    }
+
+    // Lighting info toggle (F3)
+    if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS && !f3Pressed) {
+        f3Pressed = true;
+        DebugSystem::toggleLightingInfo();
+    }
+    if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_RELEASE) {
+        f3Pressed = false;
+    }
+
+    // Scene info toggle (F4)
+    if (glfwGetKey(window, GLFW_KEY_F4) == GLFW_PRESS && !f4Pressed) {
+        f4Pressed = true;
+        DebugSystem::toggleSceneInfo();
+    }
+    if (glfwGetKey(window, GLFW_KEY_F4) == GLFW_RELEASE) {
+        f4Pressed = false;
+    }
+
+    // Camera info toggle (F5)
+    if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS && !f5Pressed) {
+        f5Pressed = true;
+        DebugSystem::toggleCameraInfo();
+    }
+    if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_RELEASE) {
+        f5Pressed = false;
     }
 }
 
@@ -211,7 +277,6 @@ void setupScene(Scene& scene, const std::vector<std::unique_ptr<Model>>& models,
         float z = Config::ROOM_RADIUS * sin(angle);
         float wallRotation = angle + (i % 2 == 0 ? glm::radians(90.0f) : 0.0f);
 
-        // Fix wall facing direction for specific walls
         if (i != 2 && i != 3 && i != 6 && i != 7) {
             wallRotation += glm::radians(180.0f);
         }
@@ -331,18 +396,15 @@ void setupScene(Scene& scene, const std::vector<std::unique_ptr<Model>>& models,
 }
 
 int main() {
-    // Initialize GLFW
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
         return -1;
     }
 
-    // Set GLFW options
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // Create GLFW window
     GLFWwindow* window = glfwCreateWindow(Config::WIDTH, Config::HEIGHT,
         "BABEL - Infinite Library", nullptr, nullptr);
     if (!window) {
@@ -351,7 +413,6 @@ int main() {
         return -1;
     }
 
-    // Initialize context and callbacks
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
@@ -362,24 +423,23 @@ int main() {
         return -1;
     }
 
-    // OpenGL settings
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glDisable(GL_CULL_FACE);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    // Seed random number generator
     srand(static_cast<unsigned int>(time(nullptr)));
+
+    // INITIALIZE DEBUG SYSTEM
+    DebugSystem::initialize();
 
     std::cout << "\n===== BABEL LIBRARY =====" << std::endl;
     std::cout << "Loading atmospheric lighting..." << std::endl;
 
-    // Load shaders
     Shader standardShader("shaders/standard.vert", "shaders/standard.frag");
     Shader lightShader("shaders/light.vert", "shaders/light.frag");
     Shader portalShader("shaders/portal.vert", "shaders/portal.frag");
 
-    // Load textures and models
     TextureManager::loadAllTextures();
 
     std::vector<std::unique_ptr<Model>> models;
@@ -394,16 +454,13 @@ int main() {
     models.push_back(std::make_unique<Model>("assets/models/lamb.obj"));
     models.push_back(std::make_unique<Model>("assets/models/door.obj"));
 
-    // Create and setup scene
     Scene scene;
     std::vector<size_t> torchIndices;
     setupScene(scene, models, torchIndices);
 
-    // Setup lighting system
     LightingManager lightingManager;
     lightingManager.setupLibraryLighting(Config::ROOM_RADIUS, Config::ROOM_HEIGHT);
 
-    // Setup portals
     PortalSystem portalSystem;
     portalSystem.initialize();
 
@@ -423,16 +480,14 @@ int main() {
     portalSystem.connectPortals(0, 2); // North <-> South
     portalSystem.connectPortals(1, 3); // East <-> West
 
-    // Camera setup
     glm::vec3 cameraPos = glm::vec3(0.0f, 2.5f, 4.0f);
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    // Time tracking
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
 
-    // Render function for recursive portal rendering
+    // Lambda function for rendering
     auto renderSceneFunc = [&](const glm::mat4& view, const glm::mat4& projection) {
         glm::mat4 invView = glm::inverse(view);
         glm::vec3 currentCameraPos = glm::vec3(invView[3]);
@@ -451,10 +506,8 @@ int main() {
         lightingManager.bindToShader(standardShader);
 
         for (const auto& obj : scene.objects) {
-            // Skip light sources (rendered separately)
             if (obj.model == models[7].get() || obj.model == models[8].get()) continue;
 
-            // Bind appropriate textures
             if (obj.model == models[0].get()) {
                 TextureManager::bindTextureForObject("book", standardShader);
             }
@@ -502,17 +555,22 @@ int main() {
             }
         }
 
-        // Render portals if enabled
         if (recursivePortalsEnabled) {
             portalSystem.renderPortalSurfaces(portalShader, view, projection, currentCameraPos, currentFrame);
         }
         };
+
+    // Debug info counter
+    static int debugFrameCounter = 0;
 
     // Main render loop
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        // UPDATE DEBUG SYSTEM PERFORMANCE STATS
+        DebugSystem::updatePerformanceStats(deltaTime);
 
         processInput(window, cameraPos, cameraFront, cameraUp, deltaTime, lightingManager, portalSystem);
 
@@ -523,7 +581,6 @@ int main() {
         direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         cameraFront = glm::normalize(direction);
 
-        // Update scene animations
         scene.update(deltaTime);
 
         // Update light positions based on torch objects
@@ -539,6 +596,16 @@ int main() {
         }
 
         portalSystem.updateDistances(cameraPos);
+
+        // PRINT DEBUG INFO PERIODICALLY
+        debugFrameCounter++;
+        if (debugFrameCounter % 120 == 0) { // Every 2 seconds at 60fps
+            DebugSystem::printCameraInfo(cameraPos, cameraFront, yaw, pitch);
+            DebugSystem::printLightingInfo(lightingManager);
+            DebugSystem::printSceneInfo(scene, models[0], models[1], models[2],
+                models[3], models[4], models[8], nullptr,
+                models[5], models[6], models[7]);
+        }
 
         // Setup matrices
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);

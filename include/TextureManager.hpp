@@ -6,21 +6,23 @@
 
 class TextureManager {
 public:
-    // Load a single texture by name and path
+    // Load texture from file and store with given name
     static GLuint loadTexture(const std::string& name, const std::string& filePath);
 
-    // Get a loaded texture
+    // Get previously loaded texture by name
     static GLuint getTexture(const std::string& name);
 
-    // Load all textures for the project
+    // Load all textures needed for the project
     static void loadAllTextures();
 
-    // Bind texture for an object type
+    // Bind appropriate textures for different object types
+    // This handles PBR material setup (base color + roughness + metallic)
     static void bindTextureForObject(const std::string& objectType, Shader& shader);
 
-    // Clean up
+    // Free all loaded textures
     static void cleanup();
 
 private:
+    // Static storage for all loaded textures (name -> OpenGL texture ID)
     static std::unordered_map<std::string, GLuint> textures;
 };

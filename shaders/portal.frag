@@ -1,26 +1,25 @@
 #version 330 core
 out vec4 FragColor;
 
-in vec2 TexCoord;
+in vec2 TexCoord;  // UV coordinates from vertex shader
 
-uniform sampler2D portalView;
-uniform float time;
-uniform bool portalActive = true;
+uniform sampler2D portalView;  // Texture containing the rendered portal view
+uniform float time;            // Current time for animations
+uniform bool portalActive = true;  // Whether portal should render
 
-// Minimal portal effect shader
+// Apply subtle visual effects to portal view
 vec3 applyMinimalPortalEffects(vec3 portalColor, vec2 uv) {
     if (!portalActive) {
-        return vec3(0.02, 0.02, 0.05);
+        return vec3(0.02, 0.02, 0.05);  // Dark blue when inactive
     }
     
-    // Distance from center
+    // Calculate distance from center for radial effects
     vec2 center = vec2(0.5, 0.5);
     float distFromCenter = length(uv - center);
     
-    // REMOVED: All brightness multiplications that were causing the issue
-    // Keep original color as-is
+    // Keep original color mostly unchanged (removed brightness multiplications that were causing issues)
     
-    // Only apply very subtle edge darkening
+    // Apply very subtle edge darkening (vignette effect)
     float vignette = 1.0 - distFromCenter * 0.1; // Reduced effect
     portalColor *= vignette;
 
@@ -30,15 +29,18 @@ vec3 applyMinimalPortalEffects(vec3 portalColor, vec2 uv) {
 void main() {
     vec2 uv = TexCoord;
     
-    // Sample the portal view texture directly
+    // Sample the portal view texture - this is what was rendered from the destination portal's perspective
     vec3 portalColor = texture(portalView, uv).rgb;
     
+    // Apply minimal effects to the portal view
     portalColor = applyMinimalPortalEffects(portalColor, uv);
     
-    // Simple alpha
+    // Create circular portal shape with alpha
     float alpha = 1.0;
     vec2 center = vec2(0.5, 0.5);
     float distFromCenter = length(uv - center);
+    
+    // Smooth circular falloff - creates clean portal edge
     alpha = 1.0 - smoothstep(0.48, 0.5, distFromCenter);
     
     FragColor = vec4(portalColor, alpha);

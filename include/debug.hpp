@@ -10,6 +10,7 @@
 
 class DebugSystem {
 private:
+    // Debug state flags
     static bool debugMode;
     static bool showPerformanceStats;
     static bool showPortalInfo;
@@ -18,23 +19,21 @@ private:
     static bool showCameraInfo;
 
     // Performance tracking
-    static float frameTime;
-    static float fps;
-    static int frameCount;
-    static float lastTime;
+    static float frameTime;    // Time for last frame
+    static float fps;          // Frames per second
+    static int frameCount;     // Frame counter
+    static float lastTime;     // Last time FPS was calculated
 
 public:
-    // Initialize debug system
-    static void initialize();
-
-    // Toggle debug mode
-    static void toggleDebugMode();
+    // System control
+    static void initialize();                              // Setup debug system
+    static void toggleDebugMode();                        // Toggle debug on/off
     static bool isDebugMode() { return debugMode; }
 
     // Performance monitoring
-    static void updatePerformanceStats(float deltaTime);
+    static void updatePerformanceStats(float deltaTime);  // Update FPS counter
 
-    // Debug info printing
+    // Debug info printing (only prints if debug mode is on and specific category is enabled)
     static void printCameraInfo(const glm::vec3& pos, const glm::vec3& front, float yaw, float pitch);
     static void printLightingInfo(const LightingManager& lightingManager);
     static void printSceneInfo(const Scene& scene,
@@ -49,12 +48,10 @@ public:
         const std::unique_ptr<Model>& wallModel,
         const std::unique_ptr<Model>& torchModel);
 
-
     // Toggle specific debug categories
     static void togglePerformanceStats();
     static void togglePortalInfo();
     static void toggleLightingInfo();
     static void toggleSceneInfo();
     static void toggleCameraInfo();
-
 };

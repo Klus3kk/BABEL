@@ -4,7 +4,7 @@
 #include <sstream>
 #include <GLFW/glfw3.h>
 
-// Static member definitions
+// Static member definitions - debug system state
 bool DebugSystem::debugMode = false;
 bool DebugSystem::showPerformanceStats = true;
 bool DebugSystem::showPortalInfo = true;
@@ -12,6 +12,7 @@ bool DebugSystem::showLightingInfo = false;
 bool DebugSystem::showSceneInfo = false;
 bool DebugSystem::showCameraInfo = true;
 
+// Performance tracking variables
 float DebugSystem::frameTime = 0.0f;
 float DebugSystem::fps = 0.0f;
 int DebugSystem::frameCount = 0;
@@ -40,15 +41,18 @@ void DebugSystem::toggleDebugMode() {
 }
 
 void DebugSystem::updatePerformanceStats(float deltaTime) {
-    frameTime = deltaTime;
-    frameCount++;
+    frameTime = deltaTime;  // Store current frame time
+    frameCount++;           // Increment frame counter
 
     float currentTime = static_cast<float>(glfwGetTime());
+
+    // Calculate FPS every second
     if (currentTime - lastTime >= 1.0f) {
-        fps = frameCount / (currentTime - lastTime);
-        frameCount = 0;
+        fps = frameCount / (currentTime - lastTime);  // Frames per second
+        frameCount = 0;      // Reset counter
         lastTime = currentTime;
 
+        // Print performance stats if enabled and debug mode is on
         if (showPerformanceStats && debugMode) {
             std::cout << "FPS: " << fps << " | Frame Time: " << frameTime * 1000.0f << "ms" << std::endl;
         }
@@ -59,11 +63,11 @@ void DebugSystem::printCameraInfo(const glm::vec3& pos, const glm::vec3& front, 
     if (!showCameraInfo || !debugMode) return;
 
     std::cout << "\n=== CAMERA INFO ===" << std::endl;
-    std::cout << std::fixed << std::setprecision(2);
+    std::cout << std::fixed << std::setprecision(2);  // Format floats to 2 decimal places
     std::cout << "Position: (" << pos.x << ", " << pos.y << ", " << pos.z << ")" << std::endl;
     std::cout << "Front: (" << front.x << ", " << front.y << ", " << front.z << ")" << std::endl;
-    std::cout << "Yaw: " << yaw << "°" << std::endl;
-    std::cout << "Pitch: " << pitch << "°" << std::endl;
+    std::cout << "Yaw: " << yaw << " degrees" << std::endl;
+    std::cout << "Pitch: " << pitch << " degrees" << std::endl;
     std::cout << "===================" << std::endl;
 }
 
@@ -72,20 +76,7 @@ void DebugSystem::printLightingInfo(const LightingManager& lightingManager) {
 
     std::cout << "\n=== LIGHTING INFO ===" << std::endl;
     std::cout << "Point lights: " << lightingManager.pointLights.size() << std::endl;
-    std::cout << "Directional lights: " << lightingManager.directionalLights.size() << std::endl;
     std::cout << "Ambient strength: " << lightingManager.ambientStrength << std::endl;
-
-    int flickeringLights = 0;
-    int movingLights = 0;
-    for (const auto& light : lightingManager.pointLights) {
-        if (light.flickering) flickeringLights++;
-        if (light.moving) movingLights++;
-    }
-
-    std::cout << "Animated lights: " << (flickeringLights + movingLights) << std::endl;
-    std::cout << "  - Flickering: " << flickeringLights << std::endl;
-    std::cout << "  - Moving: " << movingLights << std::endl;
-
     std::cout << "======================" << std::endl;
 }
 
@@ -100,18 +91,20 @@ void DebugSystem::printSceneInfo(const Scene& scene,
     const std::unique_ptr<Model>& ceilingModel,
     const std::unique_ptr<Model>& wallModel,
     const std::unique_ptr<Model>& torchModel) {
+
     if (!showSceneInfo || !debugMode) return;
 
     std::cout << "\n=== SCENE INFO ===" << std::endl;
     std::cout << "Total objects: " << scene.objects.size() << std::endl;
 
-    // Count object types
+    // Count different object types by comparing model pointers
     int books = 0, shelves = 0, torches = 0, animated = 0;
     for (const auto& obj : scene.objects) {
         if (obj.model == bookModel.get()) books++;
         else if (obj.model == bookshelfModel.get() || obj.model == bookshelf2Model.get()) shelves++;
         else if (obj.model == torchModel.get()) torches++;
 
+        // Count objects with any animation enabled
         if (obj.rotating || obj.floating || obj.orbiting || obj.pulsing) animated++;
     }
 
@@ -125,6 +118,7 @@ void DebugSystem::printSceneInfo(const Scene& scene,
     std::cout << "==================" << std::endl;
 }
 
+// Toggle functions for different debug categories
 void DebugSystem::togglePerformanceStats() {
     showPerformanceStats = !showPerformanceStats;
     std::cout << "Performance stats: " << (showPerformanceStats ? "ON" : "OFF") << std::endl;

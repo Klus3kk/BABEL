@@ -1,4 +1,4 @@
-// Enhanced standard.frag - Atmospheric Mystical Library Lighting
+// Warm standard.frag - Atmospheric lighting with warm tones
 #version 330 core
 out vec4 FragColor;
 
@@ -37,109 +37,106 @@ uniform vec3 ambientColor;
 uniform float ambientStrength;
 uniform float time;
 
-// Enhanced atmospheric parameters
-const float ATMOSPHERE_DENSITY = 0.8;
-const float LIGHT_SCATTERING = 0.3;
-const float MYSTICAL_GLOW = 0.4;
+// Warm atmospheric parameters
+const float ATMOSPHERE_DENSITY = 0.7f;
+const float LIGHT_SCATTERING = 0.15f;
+const vec3 WARM_TINT = vec3(1.1f, 0.95f, 0.8f); // Golden warm tint
 
-// Enhanced point light calculation with atmospheric effects
+// Warm point light calculation
 vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, vec3 albedo, float roughness, float metallic) {
     vec3 lightDir = normalize(light.position - fragPos);
     float distance = length(light.position - fragPos);
     
-    // Enhanced attenuation with atmospheric scattering
+    // Enhanced attenuation with warm atmospheric scattering
     float attenuation = light.intensity / (light.constant + light.linear * distance + 
                                          light.quadratic * (distance * distance));
     
-    // Add atmospheric scattering for mystical effect
+    // Warm atmospheric scattering
     float scattering = exp(-distance * LIGHT_SCATTERING) * ATMOSPHERE_DENSITY;
-    attenuation *= (1.0 + scattering);
+    attenuation *= (1.0f + scattering * 0.6f);
     
-    // Enhanced diffuse lighting with wrap-around for softer shadows
+    // Enhanced diffuse lighting with warm wrap
     float NdotL = dot(normal, lightDir);
-    float diffuseWrap = max((NdotL + 0.3) / 1.3, 0.0); // Wrap lighting for mystical softness
-    float diffuse = mix(max(NdotL, 0.0), diffuseWrap, 0.4);
+    float diffuseWrap = max((NdotL + 0.3f) / 1.3f, 0.0f);
+    float diffuse = mix(max(NdotL, 0.0f), diffuseWrap, 0.4f);
     
-    // Add distance-based ambient boost for atmospheric depth
-    float ambientBoost = 1.0 / (1.0 + distance * 0.05);
-    diffuse = max(diffuse, 0.15 * ambientBoost);
+    // Warm ambient boost for cozy atmosphere
+    float ambientBoost = 1.0f / (1.0f + distance * 0.08f);
+    diffuse = max(diffuse, 0.12f * ambientBoost);
     
-    // Enhanced specular with mystical properties
+    // Warm specular calculation
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float NdotH = max(dot(normal, halfwayDir), 0.0);
-    float specularStrength = mix(0.1, 1.0, 1.0 - roughness);
-    float shininess = mix(32.0, 128.0, 1.0 - roughness);
+    float NdotH = max(dot(normal, halfwayDir), 0.0f);
+    float specularStrength = mix(0.1f, 0.9f, 1.0f - roughness);
+    float shininess = mix(20.0f, 120.0f, 1.0f - roughness);
     float spec = pow(NdotH, shininess) * specularStrength;
     
-    // Fresnel effect for mystical glow
-    float VdotH = max(dot(viewDir, halfwayDir), 0.0);
-    float fresnel = pow(1.0 - VdotH, 5.0);
-    spec *= mix(spec, 1.0, fresnel * metallic);
+    // Warm Fresnel effect
+    float VdotH = max(dot(viewDir, halfwayDir), 0.0f);
+    float fresnel = pow(1.0f - VdotH, 4.0f);
+    spec *= mix(spec, 1.0f, fresnel * metallic * 0.6f);
     
-    // Color contribution with atmospheric tinting
-    vec3 lightColor = light.color;
+    // Apply warm tint to light color
+    vec3 lightColor = light.color * WARM_TINT;
     
-    // Add mystical color shifting based on distance
-    if (distance > 5.0) {
-        float mysticalShift = sin(time * 2.0 + distance * 0.1) * 0.1;
-        lightColor.b += mysticalShift * MYSTICAL_GLOW;
-        lightColor.r += mysticalShift * 0.5 * MYSTICAL_GLOW;
+    // Add distance-based warm color shifting
+    if (distance > 3.0f) {
+        float warmShift = min(distance / 15.0f, 0.3f);
+        lightColor.r += warmShift * 0.2f; // More red at distance
+        lightColor.g += warmShift * 0.1f; // Slight green
+        lightColor.b -= warmShift * 0.1f; // Less blue for warmth
     }
     
-    // Calculate final contribution
+    // Calculate final contribution with warm bias
     vec3 diffuseContrib = diffuse * lightColor * albedo;
-    vec3 specularContrib = spec * lightColor * mix(vec3(0.04), albedo, metallic);
+    vec3 specularContrib = spec * lightColor * mix(vec3(0.06f), albedo, metallic);
     
     return (diffuseContrib + specularContrib) * attenuation;
 }
 
-// Enhanced directional light with atmospheric perspective
+// Warm directional light calculation
 vec3 calcDirLight(DirectionalLight light, vec3 normal, vec3 viewDir, vec3 albedo, float roughness, float metallic) {
     vec3 lightDir = normalize(-light.direction);
     
-    // Enhanced diffuse with atmospheric wrap
     float NdotL = dot(normal, lightDir);
-    float diffuseWrap = max((NdotL + 0.4) / 1.4, 0.0);
-    float diffuse = mix(max(NdotL, 0.0), diffuseWrap, 0.6); // More wrap for ambient feel
+    float diffuseWrap = max((NdotL + 0.4f) / 1.4f, 0.0f);
+    float diffuse = mix(max(NdotL, 0.0f), diffuseWrap, 0.6f);
+    diffuse = max(diffuse, 0.18f); // Higher minimum for warmth
     
-    // Ensure minimum lighting for atmospheric visibility
-    diffuse = max(diffuse, 0.2);
-    
-    // Soft specular for ambient light
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float NdotH = max(dot(normal, halfwayDir), 0.0);
-    float spec = pow(NdotH, mix(16.0, 64.0, 1.0 - roughness)) * (1.0 - roughness) * 0.3;
+    float NdotH = max(dot(normal, halfwayDir), 0.0f);
+    float spec = pow(NdotH, mix(18.0f, 68.0f, 1.0f - roughness)) * (1.0f - roughness) * 0.25f;
     
-    // Atmospheric color contribution
-    vec3 lightColor = light.color * light.intensity;
+    // Apply warm tint to directional light
+    vec3 lightColor = light.color * light.intensity * WARM_TINT;
     
     vec3 diffuseContrib = diffuse * lightColor * albedo;
-    vec3 specularContrib = spec * lightColor * mix(vec3(0.04), albedo, metallic);
+    vec3 specularContrib = spec * lightColor * mix(vec3(0.06f), albedo, metallic);
     
     return diffuseContrib + specularContrib;
 }
 
-// Atmospheric fog calculation for depth and mystery
-vec3 applyAtmosphericFog(vec3 color, vec3 fragPos, vec3 viewPos) {
+// Warm atmospheric fog
+vec3 applyWarmAtmosphericFog(vec3 color, vec3 fragPos, vec3 viewPos) {
     float distance = length(fragPos - viewPos);
-    float fogFactor = exp(-distance * 0.08); // Subtle fog for depth
+    float fogFactor = exp(-distance * 0.04f);
     
-    // Mystical fog color that shifts with time
-    vec3 fogColor = ambientColor * 2.0;
-    fogColor.b += sin(time * 0.5) * 0.1; // Subtle blue pulsing
+    // Warm golden fog color
+    vec3 fogColor = ambientColor * 2.0f * WARM_TINT;
+    fogColor += vec3(0.15f, 0.1f, 0.05f); // Add golden warmth
     
     return mix(fogColor, color, fogFactor);
 }
 
-// Enhanced rim lighting for mystical atmosphere
-vec3 calcRimLighting(vec3 normal, vec3 viewDir, vec3 baseColor) {
-    float rim = 1.0 - max(dot(viewDir, normal), 0.0);
-    rim = pow(rim, 3.0);
+// Warm rim lighting
+vec3 calcWarmRimLighting(vec3 normal, vec3 viewDir, vec3 baseColor) {
+    float rim = 1.0f - max(dot(viewDir, normal), 0.0f);
+    rim = pow(rim, 2.0f);
     
-    // Mystical rim color that pulses
-    vec3 rimColor = vec3(0.3, 0.5, 1.0) * (0.8 + sin(time * 3.0) * 0.2);
+    // Warm rim color with golden tint
+    vec3 rimColor = vec3(0.8f, 0.6f, 0.3f); // Golden rim
     
-    return rimColor * rim * 0.4;
+    return rimColor * rim * 0.25f;
 }
 
 void main() {
@@ -148,19 +145,22 @@ void main() {
     float roughness = texture(roughnessMap, TexCoord).r;
     float metallic = texture(metallicMap, TexCoord).r;
     
+    // Apply warm tint to albedo for overall warmth
+    albedo *= WARM_TINT;
+    
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
     
-    // Enhanced ambient lighting with mystical properties
-    vec3 ambient = ambientColor * ambientStrength * albedo;
+    // Warm ambient lighting
+    vec3 ambient = ambientColor * ambientStrength * albedo * WARM_TINT;
     
-    // Add mystical base glow that pulses subtly
-    float mysticalPulse = 0.8 + sin(time * 1.5) * 0.2;
-    ambient += albedo * 0.1 * mysticalPulse;
+    // Subtle warm pulsing for magical atmosphere
+    float warmPulse = 1.0f + sin(time * 0.2f) * 0.04f;
+    ambient *= warmPulse;
     
     vec3 result = ambient;
     
-    // Add point lights with enhanced atmospheric effects
+    // Add point lights with warm enhancement
     for(int i = 0; i < numPointLights && i < MAX_POINT_LIGHTS; i++) {
         result += calcPointLight(pointLights[i], norm, FragPos, viewDir, albedo, roughness, metallic);
     }
@@ -170,26 +170,25 @@ void main() {
         result += calcDirLight(dirLights[i], norm, viewDir, albedo, roughness, metallic);
     }
     
-    // Add mystical rim lighting
-    result += calcRimLighting(norm, viewDir, albedo);
+    // Add warm rim lighting
+    result += calcWarmRimLighting(norm, viewDir, albedo);
     
-    // Apply atmospheric fog for depth and mystery
-    result = applyAtmosphericFog(result, FragPos, viewPos);
+    // Apply warm atmospheric fog
+    result = applyWarmAtmosphericFog(result, FragPos, viewPos);
     
-    // Ensure minimum visibility - never completely black
-    result = max(result, albedo * 0.05);
+    // Ensure minimum warm visibility
+    result = max(result, albedo * 0.04f);
     
-    // Enhanced tone mapping for mystical atmosphere
-    // Use Reinhard tone mapping with slight color grading
-    result = result / (result + vec3(1.0));
+    // Enhanced warm tone mapping
+    result = result / (result + vec3(0.8f)); // Slightly softer tone mapping
     
-    // Add slight mystical color grading
-    result.r = pow(result.r, 0.9);  // Slightly reduce red
-    result.g = pow(result.g, 0.95); // Slightly reduce green  
-    result.b = pow(result.b, 1.1);  // Enhance blue for mystical feel
+    // Warm color grading
+    result.r = pow(result.r, 0.95f); // Enhance red slightly
+    result.g = pow(result.g, 0.98f); // Keep green natural
+    result.b = pow(result.b, 1.05f); // Reduce blue slightly for warmth
     
     // Gamma correction
-    result = pow(result, vec3(1.0/2.2));
+    result = pow(result, vec3(1.0f/2.2f));
     
-    FragColor = vec4(result, 1.0);
+    FragColor = vec4(result, 1.0f);
 }

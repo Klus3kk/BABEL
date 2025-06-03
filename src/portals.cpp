@@ -161,16 +161,11 @@ void PortalSystem::renderPortalViewsRecursive(
     // Limit recursion using constant
     if (recursionDepth >= PortalConstants::MAX_RECURSION_DEPTH) return;
 
-    // Save current OpenGL state to restore later
+    // REMOVED: Save current OpenGL state - this was expensive
     GLint viewport[4];
     GLint currentFramebuffer;
     glGetIntegerv(GL_VIEWPORT, viewport);
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFramebuffer);
-
-    GLboolean depthTest, blend, cullFace;
-    glGetBooleanv(GL_DEPTH_TEST, &depthTest);
-    glGetBooleanv(GL_BLEND, &blend);
-    glGetBooleanv(GL_CULL_FACE, &cullFace);
 
     // Render view for each portal
     for (size_t i = 0; i < portals.size(); i++) {
@@ -185,11 +180,7 @@ void PortalSystem::renderPortalViewsRecursive(
         // Switch to portal's framebuffer for render-to-texture
         glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
 
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "Portal framebuffer incomplete!" << std::endl;
-            continue;
-        }
+        // REMOVED: Framebuffer status check - only needed at creation time
 
         // Set viewport to texture size
         glViewport(0, 0, textureSize, textureSize);
@@ -219,17 +210,13 @@ void PortalSystem::renderPortalViewsRecursive(
         // Render the actual scene from portal's perspective
         renderScene(portalView, portalProjection);
 
-        glFlush();
-        glFinish();
+        // REMOVED: glFlush() and glFinish() - these were killing performance
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     // Restore OpenGL state
     glBindFramebuffer(GL_FRAMEBUFFER, currentFramebuffer);
     glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-    if (depthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
-    if (blend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
-    if (cullFace) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
 }
 
 glm::mat4 PortalSystem::calculatePortalViewMatrix(const Portal& fromPortal, const Portal& toPortal,
@@ -383,13 +370,6 @@ void PortalSystem::updateDistances(const glm::vec3& playerPos) {
     }
 }
 
-void PortalSystem::setQuality(int textureResolution) {
-    textureSize = textureResolution;
-}
-
-void PortalSystem::setRecursionDepth(int depth) {
-    maxRecursionDepth = glm::clamp(depth, 1, 20);
-}
 
 void PortalSystem::cleanup() {
     for (auto& portal : portals) {

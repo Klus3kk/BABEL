@@ -49,7 +49,6 @@ class PortalSystem {
 private:
     std::vector<Portal> portals;     // All portals in the system
     int textureSize = 4096;           // Resolution of portal view textures
-    int maxRecursionDepth = 3;       // How many portal layers to render
     bool enabled = true;             // Global portal enable/disable
 
     // Internal methods
@@ -91,11 +90,8 @@ public:
 
     // Utility functions
     void updateDistances(const glm::vec3& playerPos);           // Update distance for culling
-    void setQuality(int textureResolution);                     // Change portal texture quality
-    void setRecursionDepth(int depth);                         // Change recursion limit
 
     // Getters
     size_t getPortalCount() const { return portals.size(); }
     const Portal& getPortal(int index) const { return portals[index]; }
-    int getRecursionDepth() const { return maxRecursionDepth; }
 };

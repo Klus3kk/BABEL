@@ -31,8 +31,8 @@ namespace Config {
     const float ROOM_RADIUS = 8.0f;
     const float ROOM_HEIGHT = 6.0f;
     const int NUM_SIDES = 8;
-    const float CAMERA_SPEED = 1.5f;
-    const float MOUSE_SENSITIVITY = 0.1f;
+    const float CAMERA_SPEED = 2.5f;
+    const float MOUSE_SENSITIVITY = 0.2f;
 }
 
 // Camera controls
@@ -260,9 +260,9 @@ void setupScene(Scene& scene, const std::vector<std::unique_ptr<Model>>& models,
 
     // Floor
     scene.addObject(floorModel.get(),
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, glm::radians(90.0f), 0.0f),
-        glm::vec3(2.8f, 1.0f, 2.8f));
+        glm::vec3(0.0f, 0.0f, 0.0f), // p
+        glm::vec3(0.0f, glm::radians(90.0f), 0.0f), // r
+        glm::vec3(2.8f, 1.0f, 2.8f)); // s
 
     // Ceiling
     scene.addObject(ceilingModel.get(),
@@ -596,7 +596,7 @@ int main() {
 
         portalSystem.updateDistances(cameraPos);
 
-        // PRINT DEBUG INFO PERIODICALLY
+		// It's for debug info printing every 2 seconds
         debugFrameCounter++;
         if (debugFrameCounter % 60 == 0) { // Every 2 seconds at 60fps
             DebugSystem::printCameraInfo(cameraPos, cameraFront, yaw, pitch);

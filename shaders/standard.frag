@@ -67,8 +67,8 @@ void main() {
         result += lightContrib; // Accumulate into total result
     }
 
-    // Apply a warm color tint (artistic tone)
-    result *= vec3(1.1, 0.95, 0.8); // Slight red/orange boost for firelight look
+    // Apply a warm color tint 
+    result *= vec3(1.1, 0.95, 0.8); 
 
     // Apply simple tone mapping (compress HDR to LDR)
     result = result / (result + vec3(1.0));

@@ -47,7 +47,7 @@ Model::Model(const std::string& path) {
     // Create OpenGL buffer objects
     glGenVertexArrays(1, &VAO);  // Vertex Array Object - stores vertex attribute setup
 	glGenBuffers(1, &VBO);       // Vertex Buffer Object - stores actual vertex data (raw data)
-    glBindVertexArray(VAO);
+	glBindVertexArray(VAO);      // Bind VAO to set up vertex attributes
 
     // Upload vertex data to GPU
     glBindBuffer(GL_ARRAY_BUFFER, VBO);

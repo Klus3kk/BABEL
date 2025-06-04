@@ -18,17 +18,13 @@ void main() {
     // Light objects should be mostly self-lit (they ARE the light sources)
     vec3 result = albedo;
     
-    // Add just a tiny bit of ambient so they're not completely flat
+    // a bit of ambient light 
     result += ambientColor * ambientStrength * 0.5f;
     
-    // Add a warm glow effect
+    // warm glow effect
     result *= vec3(1.1f, 0.95f, 0.8f);  
     
-    // Add subtle pulsing for torches
-    float pulse = 1.0f + sin(time * 3.0f) * 0.1f;  // Faster pulse for flame effect
-    result *= pulse;
-    
-    // Simple gamma correction, without it the colors can look washed out
+    // gamma correction, without it the colors can look washed out
     result = pow(result, vec3(1.0f/2.2f));
     
     FragColor = vec4(result, 1.0f);

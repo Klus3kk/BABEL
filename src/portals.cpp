@@ -1,11 +1,12 @@
-﻿#include "portals.hpp"
+﻿// unfortunately its a bit of a mess, but it works...sort of
+#include "portals.hpp"
 #include <iostream>
 #include <cmath>
 
 // Portal system constants - better this than some rmagic numbers
 namespace PortalConstants {
-    const int MAX_RECURSION_DEPTH = 6;
-    const int RENDER_RECURSION_LIMIT = 3;  // Render portals within portals up to this depth
+    const int MAX_RECURSION_DEPTH = 3;
+    const int RENDER_RECURSION_LIMIT = 2;  // Render portals within portals up to this depth
     const float COLLISION_DISTANCE = 20.0f;
     const float PLANE_THRESHOLD = 0.1f;
     const float VIRTUAL_CAMERA_DISTANCE = 10.0f;
@@ -92,9 +93,9 @@ void PortalSystem::generatePortalGeometry(Portal& portal) { // had quad.obj but 
     };
 
     // Generate OpenGL objects
-    glGenVertexArrays(1, &portal.portalVAO);
-    glGenBuffers(1, &portal.portalVBO);
-    glGenBuffers(1, &portal.portalEBO);
+	glGenVertexArrays(1, &portal.portalVAO); // Vertex Array Object - stores vertex attributes
+	glGenBuffers(1, &portal.portalVBO); // Vertex Buffer Object - for vertex data
+	glGenBuffers(1, &portal.portalEBO); // Element Buffer Object - for indices
 
     glBindVertexArray(portal.portalVAO);
 
@@ -158,7 +159,7 @@ void PortalSystem::renderPortalViewsRecursive(
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
     const glm::mat4& projection, int recursionDepth, int fromPortalId) {
 
-    // Limit recursion using constant
+    // Limit recursion 
     if (recursionDepth >= PortalConstants::MAX_RECURSION_DEPTH) return;
 
     GLint viewport[4];
@@ -202,7 +203,7 @@ void PortalSystem::renderPortalViewsRecursive(
             0.1f, 100.0f
         );
 
-        // RECURSIVE CALL - render portals within portals using constant
+        // RECURSIVE CALL: render portals within portals using constant
         if (recursionDepth < PortalConstants::RENDER_RECURSION_LIMIT) {
             renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp,
                 portalProjection, recursionDepth + 1, portal.destinationPortalId);
@@ -304,6 +305,7 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
     glDisable(GL_BLEND);
 }
 
+// Teleportation logic: checks if player crossed portal plane and teleports them
 bool PortalSystem::checkPortalCollision(const glm::vec3& oldPos, const glm::vec3& newPos, glm::vec3& teleportPos) const {
     for (const auto& portal : portals) {
         // Check portal validity with bounds checking

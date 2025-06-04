@@ -51,7 +51,7 @@ void SceneObject::update(float deltaTime) {
         rotation.y += rotationSpeed * deltaTime;
 
         // Keep rotation in reasonable range to prevent float precision issues
-        if (rotation.y > 6.28f) // 2π
+		if (rotation.y > 6.28f) // 2pi radians 
             rotation.y -= 6.28f;
         if (rotation.y < -6.28f)
             rotation.y += 6.28f;
@@ -68,6 +68,7 @@ void SceneObject::rotate(float yawAmount, float pitchAmount, float rollAmount) {
     updateModelMatrix();
 }
 
+// animations 
 void SceneObject::setRotating(bool enabled, float speed) {
     rotating = enabled;
     rotationSpeed = speed;  // Radians per second
@@ -94,7 +95,7 @@ void SceneObject::setOrbiting(bool enabled, const glm::vec3& center, float radiu
     }
 }
 
-// Scene class implementation
+// SCNENE CLASS IMPLEMENTATION
 void Scene::addObject(const Model* model, const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale) {
     // Add new object to scene with specified transform
     objects.emplace_back(model, position, rotation, scale);

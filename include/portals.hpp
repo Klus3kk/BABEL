@@ -48,7 +48,7 @@ struct Portal {
 class PortalSystem {
 private:
     std::vector<Portal> portals;     // All portals in the system
-    int textureSize = 2048;           // Resolution of portal view textures
+    int textureSize = 1024;           // Resolution of portal view textures
     bool enabled = true;             // Global portal enable/disable
 
     // Internal methods

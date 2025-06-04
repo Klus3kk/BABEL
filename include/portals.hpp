@@ -48,7 +48,7 @@ struct Portal {
 class PortalSystem {
 private:
     std::vector<Portal> portals;     // All portals in the system
-    int textureSize = 4096;           // Resolution of portal view textures
+    int textureSize = 2048;           // Resolution of portal view textures
     bool enabled = true;             // Global portal enable/disable
 
     // Internal methods
@@ -83,7 +83,7 @@ public:
     void renderPortalViewsRecursive(
         const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
         const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
-        const glm::mat4& projection, int recursionDepth);
+        const glm::mat4& projection, int recursionDepth, int fromPortalId = -1);
 
     // Player interaction
     bool checkPortalCollision(const glm::vec3& oldPos, const glm::vec3& newPos, glm::vec3& teleportPos) const;

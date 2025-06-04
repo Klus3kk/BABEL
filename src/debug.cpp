@@ -20,7 +20,7 @@ float DebugSystem::lastTime = 0.0f;
 
 void DebugSystem::initialize() {
     std::cout << "=== BABEL DEBUG SYSTEM INITIALIZED ===" << std::endl;
-    std::cout << "Press H to toggle debug mode" << std::endl;
+    std::cout << "Press F10 to toggle debug mode" << std::endl;
     std::cout << "Debug categories:" << std::endl;
     std::cout << "  F1 - Performance stats" << std::endl;
     std::cout << "  F2 - Portal information" << std::endl;

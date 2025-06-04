@@ -52,7 +52,7 @@ public:
     void setRotating(bool enabled, float speed = 1.0f);
     void setFloating(bool enabled, float amplitude = 0.3f, float speed = 1.0f);
     void setOrbiting(bool enabled, const glm::vec3& center, float radius = 2.0f, float speed = 1.0f);
-    void setPulsing(bool enabled, float amplitude = 0.1f, float speed = 2.0f);
+    //void setPulsing(bool enabled, float amplitude = 0.1f, float speed = 2.0f);
 };
 
 class Scene {
@@ -70,5 +70,5 @@ public:
     // Utility methods
     size_t getObjectCount() const { return objects.size(); }
     SceneObject& getObject(size_t index) { return objects[index]; }
-    const SceneObject& getObject(size_t index) const { return objects[index]; }
+    //const SceneObject& getObject(size_t index) const { return objects[index]; }
 };

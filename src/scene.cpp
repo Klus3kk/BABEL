@@ -28,13 +28,9 @@ void SceneObject::update(float deltaTime) {
     // Orbital motion - objects move in circles
     if (orbiting) {
         orbitTime += orbitSpeed * deltaTime;
-        float x = orbitCenter.x + orbitRadius * cos(orbitTime);
-        float z = orbitCenter.z + orbitRadius * sin(orbitTime);
-        position.x = x;
-        position.z = z;
-
-        // Make orbiting objects face their movement direction
-        rotation.y = orbitTime + glm::radians(90.0f);
+        position.x = orbitCenter.x + orbitRadius * cos(orbitTime);
+        position.z = orbitCenter.z + orbitRadius * sin(orbitTime);
+        rotation.y = orbitTime + glm::radians(90.0f); // Make orbiting objects face their movement direction
     }
 
     // Floating motion - gentle up/down bobbing
@@ -48,13 +44,6 @@ void SceneObject::update(float deltaTime) {
             // If orbiting too, add floating to orbital motion
             position.y = orbitCenter.y + sin(floatTime) * floatAmplitude;
         }
-    }
-
-    // Pulsing - scale variation over time
-    if (pulsing) {
-        pulseTime += pulseSpeed * deltaTime;
-        float pulseFactor = 1.0f + sin(pulseTime) * pulseAmplitude;
-        scale = glm::vec3(pulseFactor);  // Uniform scaling
     }
 
     // Rotation around Y axis
@@ -103,12 +92,6 @@ void SceneObject::setOrbiting(bool enabled, const glm::vec3& center, float radiu
         glm::vec3 offset = position - center;
         orbitTime = atan2(offset.z, offset.x);  // Start at current angle
     }
-}
-
-void SceneObject::setPulsing(bool enabled, float amplitude, float speed) {
-    pulsing = enabled;
-    pulseAmplitude = amplitude;  // How much to scale (0.1 = ±10%)
-    pulseSpeed = speed;          // How fast to pulse
 }
 
 // Scene class implementation

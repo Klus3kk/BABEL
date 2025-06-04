@@ -4,7 +4,7 @@
 #include <iostream>
 
 Model::Model(const std::string& path) {
-    std::vector<float> vertexData;
+	std::vector<float> vertexData; // Vector to hold vertex data (positions, normals, UVs)
 
     // Load OBJ file using TinyObjLoader library
     tinyobj::attrib_t attrib;                    // Vertex attributes (positions, normals, UVs)
@@ -46,15 +46,12 @@ Model::Model(const std::string& path) {
 
     // Create OpenGL buffer objects
     glGenVertexArrays(1, &VAO);  // Vertex Array Object - stores vertex attribute setup
-    glGenBuffers(1, &VBO);       // Vertex Buffer Object - stores actual vertex data
-
+	glGenBuffers(1, &VBO);       // Vertex Buffer Object - stores actual vertex data (raw data)
     glBindVertexArray(VAO);
 
     // Upload vertex data to GPU
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, vertexData.size() * sizeof(float), vertexData.data(), GL_STATIC_DRAW);
-
-    // Set up vertex attribute pointers (tell OpenGL how to interpret vertex data)
 
     // Position attribute (location = 0 in vertex shader)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);

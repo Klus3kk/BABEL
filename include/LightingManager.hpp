@@ -26,7 +26,7 @@ public:
     std::vector<PointLight> pointLights;           // All point lights in scene
 
     // Global ambient lighting - fixed to actual values used
-    glm::vec3 ambientColor = glm::vec3(0.025f, 0.015f, 0.008f); // Warm amber tint
+    glm::vec3 ambientColor = glm::vec3(0.025f, 0.015f, 0.008f); // amber tint
     float ambientStrength = 0.12f;
 
     // Main setup and management

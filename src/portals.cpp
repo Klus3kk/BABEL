@@ -2,17 +2,17 @@
 #include <iostream>
 #include <cmath>
 
-// Portal system constants - much clearer than magic numbers
+// Portal system constants - better this than some rmagic numbers
 namespace PortalConstants {
-    const int MAX_RECURSION_DEPTH = 3;
-    const int RENDER_RECURSION_LIMIT = 2;  // Render portals within portals up to this depth
-    const float COLLISION_DISTANCE = 3.0f;
+    const int MAX_RECURSION_DEPTH = 6;
+    const int RENDER_RECURSION_LIMIT = 3;  // Render portals within portals up to this depth
+    const float COLLISION_DISTANCE = 20.0f;
     const float PLANE_THRESHOLD = 0.1f;
-    const float VIRTUAL_CAMERA_DISTANCE = 5.0f;
+    const float VIRTUAL_CAMERA_DISTANCE = 10.0f;
     const float TELEPORT_OFFSET = 0.5f;
-    const float DISTANCE_CULLING = 50.0f;
-    const float PORTAL_SIZE_MULTIPLIER = 0.75f;
-    const float CAMERA_INFLUENCE_FACTOR = 0.1f;  // For direction transformation
+    const float DISTANCE_CULLING = 55.0f;
+    const float PORTAL_SIZE_MULTIPLIER = 1.2f;
+    const float CAMERA_INFLUENCE_FACTOR = 0.3f;  // For direction transformation
 }
 
 PortalSystem::~PortalSystem() {
@@ -71,7 +71,7 @@ void PortalSystem::addPortal(const glm::vec3& position, const glm::vec3& normal)
         << position.x << ", " << position.y << ", " << position.z << ")" << std::endl;
 }
 
-void PortalSystem::generatePortalGeometry(Portal& portal) {
+void PortalSystem::generatePortalGeometry(Portal& portal) { // had quad.obj but this is better
     // Create portal quad using size multiplier constant
     float halfWidth = portal.width * PortalConstants::PORTAL_SIZE_MULTIPLIER;
     float halfHeight = portal.height * PortalConstants::PORTAL_SIZE_MULTIPLIER;
@@ -150,18 +150,17 @@ void PortalSystem::renderPortalViews(
     if (!areActive() || portals.empty()) return;
 
     // Start recursive rendering from depth 0
-    renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp, projection, 0);
+    renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp, projection, 0, -1);
 }
 
 void PortalSystem::renderPortalViewsRecursive(
     const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
     const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
-    const glm::mat4& projection, int recursionDepth) {
+    const glm::mat4& projection, int recursionDepth, int fromPortalId) {
 
     // Limit recursion using constant
     if (recursionDepth >= PortalConstants::MAX_RECURSION_DEPTH) return;
 
-    // REMOVED: Save current OpenGL state - this was expensive
     GLint viewport[4];
     GLint currentFramebuffer;
     glGetIntegerv(GL_VIEWPORT, viewport);
@@ -171,6 +170,9 @@ void PortalSystem::renderPortalViewsRecursive(
     for (size_t i = 0; i < portals.size(); i++) {
         auto& portal = portals[i];
 
+        // Skip portal we came from
+        if (static_cast<int>(portal.portalId) == fromPortalId) continue;
+
         // Check portal validity with bounds checking
         if (!portal.active || portal.destinationPortalId < 0 ||
             portal.destinationPortalId >= static_cast<int>(portals.size())) continue;
@@ -179,8 +181,6 @@ void PortalSystem::renderPortalViewsRecursive(
 
         // Switch to portal's framebuffer for render-to-texture
         glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
-
-        // REMOVED: Framebuffer status check - only needed at creation time
 
         // Set viewport to texture size
         glViewport(0, 0, textureSize, textureSize);
@@ -204,13 +204,13 @@ void PortalSystem::renderPortalViewsRecursive(
 
         // RECURSIVE CALL - render portals within portals using constant
         if (recursionDepth < PortalConstants::RENDER_RECURSION_LIMIT) {
-            renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp, portalProjection, recursionDepth + 1);
+            renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp,
+                portalProjection, recursionDepth + 1, portal.destinationPortalId);
         }
 
         // Render the actual scene from portal's perspective
         renderScene(portalView, portalProjection);
 
-        // REMOVED: glFlush() and glFinish() - these were killing performance
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
@@ -369,7 +369,6 @@ void PortalSystem::updateDistances(const glm::vec3& playerPos) {
         portal.distanceFromPlayer = glm::length(portal.position - playerPos);
     }
 }
-
 
 void PortalSystem::cleanup() {
     for (auto& portal : portals) {

@@ -30,13 +30,13 @@
     <ClCompile Include="src\LightingManager.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\portals.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\debug.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\portals.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

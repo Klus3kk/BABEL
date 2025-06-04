@@ -31,7 +31,7 @@ namespace Config {
     const float ROOM_RADIUS = 8.0f;
     const float ROOM_HEIGHT = 6.0f;
     const int NUM_SIDES = 8;
-    const float CAMERA_SPEED = 3.0f;
+    const float CAMERA_SPEED = 1.5f;
     const float MOUSE_SENSITIVITY = 0.1f;
 }
 
@@ -256,7 +256,7 @@ void setupScene(Scene& scene, const std::vector<std::unique_ptr<Model>>& models,
     const auto& lampModel = models[8];
     const auto& doorFrameModel = models[9];
 
-    std::cout << "Building atmospheric library..." << std::endl;
+    std::cout << "Building the library..." << std::endl;
 
     // Floor
     scene.addObject(floorModel.get(),
@@ -382,8 +382,7 @@ void setupScene(Scene& scene, const std::vector<std::unique_ptr<Model>>& models,
             scene.objects[bookIndex].setFloating(true, 0.5f, 1.0f);
             scene.objects[bookIndex].setRotating(true, 0.6f);
             break;
-        case 2: // Pulsing + rotation
-            scene.objects[bookIndex].setPulsing(true, 0.1f, 2.0f);
+        case 2: // Rotation
             scene.objects[bookIndex].setRotating(true, 0.4f);
             break;
         case 3: // Combined: orbital + floating + rotation
@@ -599,7 +598,7 @@ int main() {
 
         // PRINT DEBUG INFO PERIODICALLY
         debugFrameCounter++;
-        if (debugFrameCounter % 120 == 0) { // Every 2 seconds at 60fps
+        if (debugFrameCounter % 60 == 0) { // Every 2 seconds at 60fps
             DebugSystem::printCameraInfo(cameraPos, cameraFront, yaw, pitch);
             DebugSystem::printLightingInfo(lightingManager);
             DebugSystem::printSceneInfo(scene, models[0], models[1], models[2],

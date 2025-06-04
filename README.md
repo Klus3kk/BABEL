@@ -4,7 +4,7 @@ OpenGL library with infinite rooms. Walk through doorways to loop back to the sa
 
 Based on Borges' Library of Babel concept.
 
-<img src="https://github.com/user-attachments/assets/4624db21-9a94-4255-891e-092bc9adaa20" alt="BABEL Library" width="600">
+![library1](https://github.com/user-attachments/assets/c88a0596-adf3-4f51-bbc3-e11e25f2b665)
 
 ## Build Instructions
 

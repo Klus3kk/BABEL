@@ -4,8 +4,9 @@ OpenGL library with infinite rooms. Walk through doorways to loop back to the sa
 
 Based on Borges' Library of Babel concept.
 
-## Build Instructions
+<img src="https://github.com/user-attachments/assets/4624db21-9a94-4255-891e-092bc9adaa20" alt="BABEL Library" width="600">
 
+## Build Instructions
 
 Windows only. Requires Visual Studio.
 
@@ -32,5 +33,3 @@ Windows only. Requires Visual Studio.
 ## How it works
 
 Portal system renders the scene from multiple camera angles into textures, then maps those textures onto doorway surfaces. Walking through teleports you back to create seamless infinite rooms.
-
-![library](https://github.com/user-attachments/assets/4624db21-9a94-4255-891e-092bc9adaa20)

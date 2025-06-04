@@ -262,7 +262,7 @@ void setupScene(Scene& scene, const std::vector<std::unique_ptr<Model>>& models,
     scene.addObject(floorModel.get(),
         glm::vec3(0.0f, 0.0f, 0.0f), // p
         glm::vec3(0.0f, glm::radians(90.0f), 0.0f), // r
-        glm::vec3(2.8f, 1.0f, 2.8f)); // s
+        glm::vec3(3.4f, 1.0f, 3.4f)); // s
 
     // Ceiling
     scene.addObject(ceilingModel.get(),

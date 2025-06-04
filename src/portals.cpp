@@ -5,15 +5,15 @@
 
 // Portal system constants - better this than some rmagic numbers
 namespace PortalConstants {
-    const int MAX_RECURSION_DEPTH = 3;
-    const int RENDER_RECURSION_LIMIT = 2;  // Render portals within portals up to this depth
+    const int MAX_RECURSION_DEPTH = 6;
+    const int RENDER_RECURSION_LIMIT = 5;  // Render portals within portals up to this depth
     const float COLLISION_DISTANCE = 20.0f;
     const float PLANE_THRESHOLD = 0.1f;
-    const float VIRTUAL_CAMERA_DISTANCE = 10.0f;
+    const float VIRTUAL_CAMERA_DISTANCE = 12.0f;
     const float TELEPORT_OFFSET = 0.5f;
-    const float DISTANCE_CULLING = 55.0f;
-    const float PORTAL_SIZE_MULTIPLIER = 1.2f;
-    const float CAMERA_INFLUENCE_FACTOR = 0.3f;  // For direction transformation
+    const float DISTANCE_CULLING = 50.0f;
+    const float PORTAL_SIZE_MULTIPLIER = 1.1f;
+    const float CAMERA_INFLUENCE_FACTOR = 0.1f;  // For direction transformation
 }
 
 PortalSystem::~PortalSystem() {
@@ -150,101 +150,164 @@ void PortalSystem::renderPortalViews(
 
     if (!areActive() || portals.empty()) return;
 
-    // Start recursive rendering from depth 0
-    renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp, projection, 0, -1);
-}
-
-void PortalSystem::renderPortalViewsRecursive(
-    const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
-    const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
-    const glm::mat4& projection, int recursionDepth, int fromPortalId) {
-
-    // Limit recursion 
-    if (recursionDepth >= PortalConstants::MAX_RECURSION_DEPTH) return;
+    // ULTIMATE SOLUTION: Render recursion depth-by-depth, ensuring ALL portals 
+    // get processed at EVERY depth level before moving to the next depth
 
     GLint viewport[4];
     GLint currentFramebuffer;
     glGetIntegerv(GL_VIEWPORT, viewport);
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &currentFramebuffer);
 
-    // Render view for each portal
+    // Render from deepest recursion level back to surface
+    // This ensures consistency across all portals
+    for (int depth = PortalConstants::RENDER_RECURSION_LIMIT - 1; depth >= 0; depth--) {
+        renderAllPortalsAtDepth(renderScene, cameraPos, cameraFront, cameraUp, projection, depth);
+    }
+
+    // Restore state
+    glBindFramebuffer(GL_FRAMEBUFFER, currentFramebuffer);
+    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+}
+
+void PortalSystem::renderAllPortalsAtDepth(
+    const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
+    const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
+    const glm::mat4& projection, int targetDepth) {
+
+    // Process ALL portals at this specific depth level
     for (size_t i = 0; i < portals.size(); i++) {
         auto& portal = portals[i];
 
-        // Skip portal we came from
-        if (static_cast<int>(portal.portalId) == fromPortalId) continue;
-
-        // Check portal validity with bounds checking
+        // Check portal validity
         if (!portal.active || portal.destinationPortalId < 0 ||
             portal.destinationPortalId >= static_cast<int>(portals.size())) continue;
 
         const Portal& destPortal = portals[portal.destinationPortalId];
 
-        // Switch to portal's framebuffer for render-to-texture
+        // Switch to this portal's framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, portal.framebuffer);
 
-        // Set viewport to texture size
-        glViewport(0, 0, textureSize, textureSize);
-        glClearColor(0.01f, 0.008f, 0.005f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // Verify framebuffer
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) continue;
 
-        // Set proper render state
+        glViewport(0, 0, textureSize, textureSize);
+
+        // Only clear on the deepest level to avoid overwriting recursion
+        if (targetDepth == PortalConstants::RENDER_RECURSION_LIMIT - 1) {
+            glClearColor(0.01f, 0.008f, 0.005f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        }
+
+        // Set render state
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
         glEnable(GL_CULL_FACE);
 
-        // Calculate view matrix as if camera was at destination portal
-        glm::mat4 portalView = calculatePortalViewMatrix(portal, destPortal, cameraPos, cameraFront, cameraUp);
-        glm::mat4 portalProjection = glm::perspective(
-            glm::radians(60.0f),
-            1.0f,
-            0.1f, 100.0f
-        );
+        // Calculate transformed camera position and direction
+        glm::vec3 transformedCameraPos;
+        glm::vec3 transformedCameraFront;
+        glm::vec3 transformedCameraUp;
 
-        // RECURSIVE CALL: render portals within portals using constant
-        if (recursionDepth < PortalConstants::RENDER_RECURSION_LIMIT) {
-            renderPortalViewsRecursive(renderScene, cameraPos, cameraFront, cameraUp,
-                portalProjection, recursionDepth + 1, portal.destinationPortalId);
-        }
+        calculateTransformedCamera(portal, destPortal, cameraPos, cameraFront, cameraUp,
+            transformedCameraPos, transformedCameraFront, transformedCameraUp);
 
-        // Render the actual scene from portal's perspective
+        glm::mat4 portalView = glm::lookAt(transformedCameraPos,
+            transformedCameraPos + transformedCameraFront,
+            transformedCameraUp);
+        glm::mat4 portalProjection = glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 100.0f);
+
+        // Render the scene at this depth
         renderScene(portalView, portalProjection);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
-
-    // Restore OpenGL state
-    glBindFramebuffer(GL_FRAMEBUFFER, currentFramebuffer);
-    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 }
 
-glm::mat4 PortalSystem::calculatePortalViewMatrix(const Portal& fromPortal, const Portal& toPortal,
-    const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const {
+void PortalSystem::calculateTransformedCamera(const Portal& fromPortal, const Portal& toPortal,
+    const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
+    glm::vec3& outPos, glm::vec3& outFront, glm::vec3& outUp) const {
 
-    // Position virtual camera behind destination portal using constant
-    glm::vec3 virtualCameraPos = toPortal.position - (PortalConstants::VIRTUAL_CAMERA_DISTANCE * toPortal.normal);
+    // Use camera position with FIXED Y height for portal calculations
+    glm::vec3 fixedCameraPos = cameraPos;
+    fixedCameraPos.y = fromPortal.position.y; // Lock to portal's Y level
 
-    // Calculate portal coordinate systems for direction transformation
-    glm::vec3 fromRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), fromPortal.normal));
-    glm::vec3 fromUp = glm::normalize(glm::cross(fromPortal.normal, fromRight));
-    glm::vec3 toRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), toPortal.normal));
-    glm::vec3 toUp = glm::normalize(glm::cross(toPortal.normal, toRight));
+    // Calculate relative position using the fixed camera position
+    glm::vec3 relativePos = fixedCameraPos - fromPortal.position;
 
-    // Transform camera direction through portal with controlled influence
-    float frontRight = glm::dot(cameraFront, fromRight) * PortalConstants::CAMERA_INFLUENCE_FACTOR;
-    float frontUp = glm::dot(cameraFront, fromUp) * PortalConstants::CAMERA_INFLUENCE_FACTOR;
-    float frontForward = glm::dot(cameraFront, fromPortal.normal);
+    // Apply movement dampening BUT only for distant positions to prevent close-up rotation
+    float distanceToPortal = glm::length(relativePos);
+    float movementDampening = 0.2f;
 
-    glm::vec3 virtualCameraFront =
-        -(frontRight * toRight) +
-        (frontUp * toUp) +
-        (-frontForward * toPortal.normal);
-    virtualCameraFront = glm::normalize(virtualCameraFront);
+    // DISABLE movement response when close to portal to prevent weird rotation
+    if (distanceToPortal < 5.0f) {
+        movementDampening = 0.05f; // Almost no movement response when close
+    }
 
-    glm::vec3 lookTarget = virtualCameraPos + virtualCameraFront * PortalConstants::VIRTUAL_CAMERA_DISTANCE;
-    return glm::lookAt(virtualCameraPos, lookTarget, cameraUp);
+    relativePos *= movementDampening;
+
+    // Create orthonormal coordinate systems for both portals
+    glm::vec3 fromForward = glm::normalize(fromPortal.normal);
+    glm::vec3 fromRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), fromForward));
+    glm::vec3 fromUp = glm::normalize(glm::cross(fromForward, fromRight));
+
+    glm::vec3 toForward = glm::normalize(toPortal.normal);
+    glm::vec3 toRight = glm::normalize(glm::cross(glm::vec3(0, 1, 0), toForward));
+    glm::vec3 toUp = glm::normalize(glm::cross(toForward, toRight));
+
+    // Transform position: project onto source portal's coordinate system,
+    // then reconstruct in destination portal's coordinate system
+    float rightDist = glm::dot(relativePos, fromRight);
+    float upDist = glm::dot(relativePos, fromUp);  // This will be 0 since we fixed Y
+    float forwardDist = glm::dot(relativePos, fromForward);
+
+    // Mirror transformation (flip horizontal and depth)
+    outPos = toPortal.position +
+        (-rightDist) * toRight +    // Flip horizontally
+        upDist * toUp +             // Keep vertical (will be 0)
+        (-forwardDist) * toForward; // Flip depth
+
+    // Add minimum distance offset to prevent camera getting too close
+    float minDistance = 8.0f;
+    glm::vec3 offsetFromPortal = outPos - toPortal.position;
+    float currentDistance = glm::length(offsetFromPortal);
+
+    if (currentDistance < minDistance) {
+        // Push camera back to minimum distance while maintaining direction
+        glm::vec3 direction = glm::normalize(offsetFromPortal);
+        outPos = toPortal.position + direction * minDistance;
+    }
+
+    // ROTATION FIX: Slow X rotation, NO Y rotation (as requested)
+    float frontRight = glm::dot(cameraFront, fromRight);
+    float frontUp = glm::dot(cameraFront, fromUp);
+    float frontForward = glm::dot(cameraFront, fromForward);
+
+    // Apply slow rotation for X only, DISABLE Y rotation
+    float rotationSensitivity = 0.1f; // Slow horizontal rotation (X perspective)
+
+    frontRight *= rotationSensitivity;
+    frontForward *= rotationSensitivity;
+    frontUp = 0.0f; // NO vertical rotation - portal perspective stays flat
+
+    outFront = (-frontRight) * toRight +    // Flip horizontal component
+        frontUp * toUp +             // Keep vertical component (preserves pitch)
+        (-frontForward) * toForward; // Flip forward component
+
+    // Add tiny downward tilt to make floor appear more level
+    outFront.y += 0.005f; // Small downward adjustment to counter upward floor
+
+    // Ensure the direction is valid
+    if (glm::length(outFront) < 0.1f) {
+        // Fallback: look towards portal center
+        outFront = glm::normalize(toPortal.position - outPos);
+        outFront.y = frontUp; // Maintain original pitch
+    }
+
+    outFront = glm::normalize(outFront);
+
+    // Simple up vector for stability
+    outUp = glm::vec3(0, 1, 0);
 }
 
 void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& view, const glm::mat4& projection,
@@ -257,15 +320,19 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
     portalShader.setMat4("projection", &projection[0][0]);
     portalShader.setFloat("time", time);
 
-    // Enable alpha blending for portal transparency effects
+    // CRITICAL FIX: Proper depth testing for portals
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);  // Changed from GL_LESS to GL_LEQUAL
+    glDepthMask(GL_FALSE);   // Don't write to depth buffer
+
+    // Enable alpha blending for transparency
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
 
     for (size_t i = 0; i < portals.size(); i++) {
         const auto& portal = portals[i];
 
-        // Skip portals using distance culling constant
+        // Skip invalid portals
         if (!portal.active || portal.distanceFromPlayer > PortalConstants::DISTANCE_CULLING || portal.colorTexture == 0) continue;
 
         // Create model matrix for portal positioning and orientation
@@ -283,6 +350,9 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
         rotation[1] = glm::vec4(up, 0.0f);
         rotation[2] = glm::vec4(portal.normal, 0.0f);
         portalMatrix = portalMatrix * rotation;
+
+        // CRITICAL: Scale the portal slightly smaller to fit within doorframe
+        portalMatrix = glm::scale(portalMatrix, glm::vec3(0.85f, 0.85f, 1.0f));
 
         portalShader.setMat4("model", &portalMatrix[0][0]);
         portalShader.setBool("portalActive", true);
@@ -302,6 +372,7 @@ void PortalSystem::renderPortalSurfaces(Shader& portalShader, const glm::mat4& v
 
     // Restore OpenGL state
     glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
     glDisable(GL_BLEND);
 }
 

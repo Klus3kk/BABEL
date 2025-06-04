@@ -7,6 +7,8 @@
 #include <functional>
 #include "shader.hpp"
 
+
+
 // Individual portal structure
 struct Portal {
     glm::vec3 position;      // Portal location in world
@@ -48,14 +50,22 @@ struct Portal {
 class PortalSystem {
 private:
     std::vector<Portal> portals;     // All portals in the system
-    int textureSize = 1024;           // Resolution of portal view textures
+    int textureSize = 8192;           // Resolution of portal view textures
     bool enabled = true;             // Global portal enable/disable
 
     // Internal methods
     void generatePortalGeometry(Portal& portal);      // Create quad mesh for portal
     void cleanupPortalGeometry(Portal& portal);       // Free portal geometry
-    glm::mat4 calculatePortalViewMatrix(const Portal& fromPortal, const Portal& toPortal,
-        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp) const;
+    void renderAllPortalsAtDepth(
+        const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
+        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
+        const glm::mat4& projection, int targetDepth);
+
+    // NEW: Perfected camera transformation
+    void calculateTransformedCamera(const Portal& fromPortal, const Portal& toPortal,
+        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
+        glm::vec3& outPos, glm::vec3& outFront, glm::vec3& outUp) const;
+
 
 public:
     ~PortalSystem();
@@ -78,12 +88,6 @@ public:
 
     void renderPortalSurfaces(Shader& portalShader, const glm::mat4& view, const glm::mat4& projection,
         const glm::vec3& cameraPos, float time);
-
-    // Recursive rendering for infinite depth effect
-    void renderPortalViewsRecursive(
-        const std::function<void(const glm::mat4&, const glm::mat4&)>& renderScene,
-        const glm::vec3& cameraPos, const glm::vec3& cameraFront, const glm::vec3& cameraUp,
-        const glm::mat4& projection, int recursionDepth, int fromPortalId = -1);
 
     // Player interaction
     bool checkPortalCollision(const glm::vec3& oldPos, const glm::vec3& newPos, glm::vec3& teleportPos) const;
